@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2011 Wind River Systems and others.
+ * Copyright (c) 2006, 2012 Wind River Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,7 @@
  *     Vladimir Prus (CodeSourcery) - Support for -data-read-memory-bytes (bug 322658)
  *     Jens Elmenthaler (Verigy) - Added Full GDB pretty-printing support (bug 302121)
  *     Marc Khouzam (Ericsson) - Call new FinalLaunchSequence_7_0 (Bug 365471)
+ *     Mathias Kunter - Support for different charsets (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service.command;
 
@@ -482,6 +483,33 @@ public class GDBControl_7_0 extends AbstractMIControl implements IGDBControl {
 	public void enablePrettyPrintingForMIVariableObjects(RequestMonitor rm) {
 		queueCommand(
 				getCommandFactory().createMIEnablePrettyPrinting(fControlDmc),
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
+	}
+	
+	@Override
+	public void setCharsets(String charset, String wideCharset, RequestMonitor rm) {
+		// Enable printing of sevenbit-strings. This is required to avoid charset issues.
+		// See bug 307311 for details.
+		queueCommand(
+				getCommandFactory().createMIGDBSetPrintSevenbitStrings(fControlDmc, true),
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
+		
+		// Set the host charset to UTF-8. This ensures that we can correctly handle different
+		// charsets used by the inferior program.
+		queueCommand(
+				getCommandFactory().createMIGDBSetHostCharset(fControlDmc, "UTF-8"), //$NON-NLS-1$
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
+		
+		// Set the target charset. The target charset is the charset used by the char type of
+		// the inferior program. Note that GDB only accepts upper case charset names.
+		queueCommand(
+				getCommandFactory().createMIGDBSetTargetCharset(fControlDmc, charset.toUpperCase()),
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
+		
+		// Set the target wide charset. The target wide charset is the charset used by the wchar_t
+		// type of the inferior program. Note that GDB only accepts upper case charset names.
+		queueCommand(
+				getCommandFactory().createMIGDBSetTargetWideCharset(fControlDmc, wideCharset.toUpperCase()),
 				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
 	}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2011 Wind River Systems and others.
+ * Copyright (c) 2006, 2012 Wind River Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,8 +9,9 @@
  *     Wind River Systems - initial API and implementation
  *     Ericsson 		  - Modified for additional features in DSF Reference implementation
  *     Nokia - create and use backend service.
- *     Vladimir Prus (CodeSourcery) - Support for -data-read-memory-bytes (bug 322658)      
+ *     Vladimir Prus (CodeSourcery) - Support for -data-read-memory-bytes (bug 322658)
  *     Jens Elmenthaler (Verigy) - Added Full GDB pretty-printing support (bug 302121)
+ *     Mathias Kunter - Support for different charsets (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service.command;
 
@@ -462,6 +463,30 @@ public class GDBControl extends AbstractMIControl implements IGDBControl {
 	@Override
 	public void enablePrettyPrintingForMIVariableObjects(RequestMonitor rm) {
 		rm.done();
+	}
+	
+	/**
+	 * Sets the charsets.
+	 * @param charset This parameter is ignored. GDB 7.0 or later required.
+	 * @param wideCharset This parameter is ignored. GDB 7.0 or later required.
+	 * @param rm
+	 */
+	@Override
+	public void setCharsets(String charset, String wideCharset, RequestMonitor rm) {
+		// Enable printing of sevenbit-strings. This is required to avoid charset issues.
+		// See bug 307311 for details.
+		queueCommand(
+				getCommandFactory().createMIGDBSetPrintSevenbitStrings(fControlDmc, true),
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
+		
+		// Set the charset to ISO-8859-1. We have to do this here because GDB earlier than
+		// 7.0 has no proper Unicode support. Note that we can still handle UTF-8 though, as
+		// we can determine and decode UTF-8 encoded strings on our own. This makes ISO-8859-1
+		// the most suitable option here. See the MIStringHandler class and bug 307311 for
+		// details.
+		queueCommand(
+				getCommandFactory().createMIGDBSetCharset(fControlDmc, "ISO-8859-1"), //$NON-NLS-1$
+				new DataRequestMonitor<MIInfo>(getExecutor(), rm));
 	}
 
 	/**
