@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2010 Wind River Systems and others.
+ * Copyright (c) 2009, 2012 Wind River Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  * 
  * Contributors:
  *     Wind River Systems - initial API and implementation
+ *     Winnie Lai (Texas Instruments) - Number format translation (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat;
 
@@ -16,6 +17,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.eclipse.cdt.debug.core.cdi.ICDIFormat;
 import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.CountingRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
@@ -207,7 +209,33 @@ public class FormattedValueVMUtil {
         return IFormattedValues.NATURAL_FORMAT;        
     }
 
-    
+	/**
+	 * Translate cdi format in integer form to dsf format
+	 * @param cdifmt cdi format
+	 * @return dsf format
+	 */
+	public static String translateCdifmt(int cdifmt) {
+		if (cdifmt == ICDIFormat.NATURAL) {
+			return IFormattedValues.NATURAL_FORMAT;
+		}
+		if (cdifmt == ICDIFormat.HEXADECIMAL) {
+			return IFormattedValues.HEX_FORMAT;
+		}
+		if (cdifmt == ICDIFormat.DECIMAL) {
+			return IFormattedValues.DECIMAL_FORMAT;
+		}
+		if (cdifmt == ICDIFormat.BINARY) {
+			return IFormattedValues.BINARY_FORMAT;
+		}
+		if (cdifmt == ICDIFormat.OCTAL) {
+			return IFormattedValues.OCTAL_FORMAT;
+		}
+		if (cdifmt == ICDIFormat.FLOAT) {
+//			return IFormattedValues.FLOAT_FORMAT;
+		}
+		return IFormattedValues.NATURAL_FORMAT;
+	}
+
     /**
      * This method fills in the formatted value properties in the given array 
      * of property update objects using data retrieved from the given 

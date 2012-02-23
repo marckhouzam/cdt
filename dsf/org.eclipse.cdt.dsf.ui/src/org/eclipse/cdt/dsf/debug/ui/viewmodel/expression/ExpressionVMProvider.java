@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 Wind River Systems and others.
+ * Copyright (c) 2006, 2012 Wind River Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  * 
  * Contributors:
  *     Wind River Systems - initial API and implementation
+ *     Winnie Lai (Texas Instruments) - Number format preference sync-up (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.ui.viewmodel.expression;
 
@@ -15,17 +16,21 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 
+import org.eclipse.cdt.debug.core.CDebugCorePlugin;
+import org.eclipse.cdt.debug.core.ICDebugConstants;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.debug.internal.ui.viewmodel.DsfCastToTypeSupport;
 import org.eclipse.cdt.dsf.debug.service.ICachingService;
 import org.eclipse.cdt.dsf.debug.service.IExpressions;
+import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMContext;
 import org.eclipse.cdt.dsf.debug.service.IExpressions2;
 import org.eclipse.cdt.dsf.debug.service.IRegisters;
-import org.eclipse.cdt.dsf.debug.service.IExpressions.IExpressionDMContext;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.ISuspendedDMEvent;
 import org.eclipse.cdt.dsf.debug.ui.DsfDebugUITools;
 import org.eclipse.cdt.dsf.debug.ui.IDsfDebugUIConstants;
+import org.eclipse.cdt.dsf.debug.ui.viewmodel.IDebugVMConstants;
+import org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.FormattedValueVMUtil;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.register.RegisterBitFieldVMNode;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.register.RegisterGroupVMNode;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.register.RegisterVMNode;
@@ -46,6 +51,7 @@ import org.eclipse.cdt.dsf.ui.viewmodel.datamodel.IDMVMContext;
 import org.eclipse.cdt.dsf.ui.viewmodel.datamodel.RootDMVMNode;
 import org.eclipse.cdt.dsf.ui.viewmodel.update.AutomaticUpdatePolicy;
 import org.eclipse.cdt.dsf.ui.viewmodel.update.IVMUpdatePolicy;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.model.IExpression;
 import org.eclipse.debug.internal.core.IExpressionsListener2;
@@ -105,6 +111,8 @@ public class ExpressionVMProvider extends AbstractDMVMProvider
         // The VM provider has to handle all events that result in model deltas.  
         // Add the provider as listener to expression changes events.
         DebugPlugin.getDefault().getExpressionManager().addExpressionListener(this);
+        
+        initializeFormat();
         
         configureLayout();
     }
@@ -198,6 +206,16 @@ public class ExpressionVMProvider extends AbstractDMVMProvider
      */
     public IExpressionVMNode[] getExpressionNodes() {
         return fExpressionNodes;
+    }
+    
+    protected void initializeFormat() {
+    	IPresentationContext context = getPresentationContext();    	
+    	if (context != null && context.getProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE) == null) {
+    		int cdifmt = Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID,
+    				ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, -1, null);
+    		String fmt = FormattedValueVMUtil.translateCdifmt(cdifmt);
+    		context.setProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE, fmt);
+    	}
     }
     
     /**

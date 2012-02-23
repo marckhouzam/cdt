@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2010 Wind River Systems and others.
+ * Copyright (c) 2007, 2012 Wind River Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,11 +7,14 @@
  * 
  * Contributors:
  *     Wind River Systems - initial API and implementation
+ *     Winnie Lai (Texas Instruments) - Number format preference sync-up (bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.ui.viewmodel.variable;
 
 import java.util.concurrent.RejectedExecutionException;
 
+import org.eclipse.cdt.debug.core.CDebugCorePlugin;
+import org.eclipse.cdt.debug.core.ICDebugConstants;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.debug.internal.ui.viewmodel.DsfCastToTypeSupport;
 import org.eclipse.cdt.dsf.debug.service.ICachingService;
@@ -20,6 +23,8 @@ import org.eclipse.cdt.dsf.debug.service.IExpressions2;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.ISuspendedDMEvent;
 import org.eclipse.cdt.dsf.debug.ui.DsfDebugUITools;
 import org.eclipse.cdt.dsf.debug.ui.IDsfDebugUIConstants;
+import org.eclipse.cdt.dsf.debug.ui.viewmodel.IDebugVMConstants;
+import org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.FormattedValueVMUtil;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.update.BreakpointHitUpdatePolicy;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.update.DebugManualUpdatePolicy;
 import org.eclipse.cdt.dsf.internal.ui.DsfUIPlugin;
@@ -32,6 +37,7 @@ import org.eclipse.cdt.dsf.ui.viewmodel.datamodel.AbstractDMVMProvider;
 import org.eclipse.cdt.dsf.ui.viewmodel.datamodel.RootDMVMNode;
 import org.eclipse.cdt.dsf.ui.viewmodel.update.AutomaticUpdatePolicy;
 import org.eclipse.cdt.dsf.ui.viewmodel.update.IVMUpdatePolicy;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IColumnPresentation;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IColumnPresentationFactory;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IPresentationContext;
@@ -74,6 +80,8 @@ public class VariableVMProvider extends AbstractDMVMProvider
         store.addPropertyChangeListener(fPreferencesListener);
         setDelayEventHandleForViewUpdate(store.getBoolean(IDsfDebugUIConstants.PREF_WAIT_FOR_VIEW_UPDATE_AFTER_STEP_ENABLE));
 
+        initializeFormat();
+
         configureLayout();
 	}
 	
@@ -84,6 +92,16 @@ public class VariableVMProvider extends AbstractDMVMProvider
         super.dispose();
     }
     
+    protected void initializeFormat() {
+    	IPresentationContext context = getPresentationContext();        
+    	if (context != null && context.getProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE) == null) {
+    		int cdifmt = Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID,
+    				ICDebugConstants.PREF_DEFAULT_VARIABLE_FORMAT, -1, null);
+    		String fmt = FormattedValueVMUtil.translateCdifmt(cdifmt);
+    		context.setProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE, fmt);
+    	}
+    }
+
     /**
      * Configures the nodes of this provider.  This method may be over-ridden by
      * sub classes to create an alternate configuration in this provider.
