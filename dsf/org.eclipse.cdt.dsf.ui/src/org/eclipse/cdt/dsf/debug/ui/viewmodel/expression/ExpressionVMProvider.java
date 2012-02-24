@@ -8,6 +8,7 @@
  * Contributors:
  *     Wind River Systems - initial API and implementation
  *     Winnie Lai (Texas Instruments) - Number format preference sync-up (bug 370462)
+ *     Marc Khouzam (Ericsson) - Number format synchronization (Bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.ui.viewmodel.expression;
 
@@ -29,7 +30,6 @@ import org.eclipse.cdt.dsf.debug.service.IRegisters;
 import org.eclipse.cdt.dsf.debug.service.IRunControl.ISuspendedDMEvent;
 import org.eclipse.cdt.dsf.debug.ui.DsfDebugUITools;
 import org.eclipse.cdt.dsf.debug.ui.IDsfDebugUIConstants;
-import org.eclipse.cdt.dsf.debug.ui.viewmodel.IDebugVMConstants;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat.FormattedValueVMUtil;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.register.RegisterBitFieldVMNode;
 import org.eclipse.cdt.dsf.debug.ui.viewmodel.register.RegisterGroupVMNode;
@@ -208,14 +208,16 @@ public class ExpressionVMProvider extends AbstractDMVMProvider
         return fExpressionNodes;
     }
     
+    /**
+     * Initialize the number format to the global preference if this is a newly
+     * created/cloned view.
+     * @since 2.3
+     */
     protected void initializeFormat() {
-    	IPresentationContext context = getPresentationContext();    	
-    	if (context != null && context.getProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE) == null) {
-    		int cdifmt = Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID,
-    				ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, -1, null);
-    		String fmt = FormattedValueVMUtil.translateCdifmt(cdifmt);
-    		context.setProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE, fmt);
-    	}
+		int cdifmt = Platform.getPreferencesService().getInt(CDebugCorePlugin.PLUGIN_ID,
+				ICDebugConstants.PREF_DEFAULT_EXPRESSION_FORMAT, -1, null);
+    	String fmt = FormattedValueVMUtil.translateCdifmt(cdifmt);
+    	FormattedValueVMUtil.initializeNewViewFormat(getPresentationContext(), fmt);
     }
     
     /**

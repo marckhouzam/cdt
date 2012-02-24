@@ -8,6 +8,7 @@
  * Contributors:
  *     Wind River Systems - initial API and implementation
  *     Winnie Lai (Texas Instruments) - Number format translation (bug 370462)
+ *     Marc Khouzam (Ericsson) - Number format synchronization (Bug 370462)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.debug.ui.viewmodel.numberformat;
 
@@ -234,6 +235,42 @@ public class FormattedValueVMUtil {
 //			return IFormattedValues.FLOAT_FORMAT;
 		}
 		return IFormattedValues.NATURAL_FORMAT;
+	}
+	
+    
+    /**
+     * Change the number format of this presentation context if it is the first time the
+     * context is seen (creation/cloning of view).
+     * @param context The presentation context that may need to be modified to store the new number format
+     * @param format The new number format that we may use
+     * @since 2.3
+     */
+	public static void initializeNewViewFormat(IPresentationContext context, String format) {
+		final String CONTEXT_ALREADY_CREATED = DsfUIPlugin.PLUGIN_ID + ".contextAlreadyCreated"; //$NON-NLS-1$
+		// The types String, Integer, Boolean or IPersistableElement get stored in the memento
+		// and are retrieved when creating a view.  We don't want that.  So, let's use a type
+		// that will not be persisted, e.g., Object.
+		// Bug 370462
+		final Object NON_PERSISTABLE_CONTEXT_PROPERTY = new Object();
+		
+		if (context != null) {
+			// Check if this is a new view being created/cloned, in which case we want
+			// to use the global preference for its number format.
+			// If the view had already been created before, we want to use the number
+			// format that is already in the presentation context.
+			if (context.getProperty(CONTEXT_ALREADY_CREATED) == null) {
+				// Newly created view
+				
+				// Store this property to remember we have already dealt with the view.
+				// Must use NON_PERSISTABLE_CONTEXT_PROPERTY to make sure the property is not
+				// saved in the platform memento and restored when we create the view again.
+				// Bug 370462
+				context.setProperty(CONTEXT_ALREADY_CREATED, NON_PERSISTABLE_CONTEXT_PROPERTY);
+
+				// Set the number format
+				context.setProperty(IDebugVMConstants.PROP_FORMATTED_VALUE_FORMAT_PREFERENCE, format);
+			}
+		}
 	}
 
     /**
