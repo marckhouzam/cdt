@@ -36,12 +36,12 @@ import org.eclipse.ui.progress.UIJob;
 
 public class GdbConsolePage extends Page {
 
-	private final GdbConsole terminalConsole;
-	private final String encoding;
-	private Composite mainComposite;
-	private ITerminalViewControl tViewCtrl;
+	private final GdbConsole fGdbConsole;
+	private final String fEncoding;
+	private Composite fMainComposite;
+	private ITerminalViewControl fViewControl;
 
-	private final ITerminalListener listener = new ITerminalListener() {
+	private final ITerminalListener fListener = new ITerminalListener() {
 		@Override
 		public void setState(TerminalState state) {
 		}
@@ -52,13 +52,13 @@ public class GdbConsolePage extends Page {
 		}
 	};
 
-	public GdbConsolePage(GdbConsole console, String encoding) {
-		terminalConsole = console;
-		this.encoding = encoding;
+	public GdbConsolePage(GdbConsole gdbConsole, String encoding) {
+		fGdbConsole = gdbConsole;
+		this.fEncoding = encoding;
 	}
 
 	public GdbConsole getConsole() {
-		return terminalConsole;
+		return fGdbConsole;
 	}
 
 	@Override
@@ -68,16 +68,16 @@ public class GdbConsolePage extends Page {
 
 	@Override
 	public void createControl(Composite parent) {
-		mainComposite = new Composite(parent, SWT.NONE);
-		mainComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
-		mainComposite.setLayout(new FillLayout());
+		fMainComposite = new Composite(parent, SWT.NONE);
+		fMainComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
+		fMainComposite.setLayout(new FillLayout());
 
-		tViewCtrl = TerminalViewControlFactory.makeControl(listener,
-				mainComposite,
+		fViewControl = TerminalViewControlFactory.makeControl(fListener,
+				fMainComposite,
 				new ITerminalConnector[] {}, true);
 		
 		try {
-			tViewCtrl.setEncoding(encoding);
+			fViewControl.setEncoding(fEncoding);
 		} catch (UnsupportedEncodingException e) {
 		}
 				
@@ -86,27 +86,30 @@ public class GdbConsolePage extends Page {
 			// Create the terminal connector
 			Map<String, Object> properties = new HashMap<String, Object>();
 			properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
-			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, encoding);
+			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fEncoding);
+			
+			// It would be better to call the backend service to get this information
 			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, "/usr/bin/gdb"); //$NON-NLS-1$
+			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, 
+					LaunchUtils.getGDBPath(fGdbConsole.getLaunch().getLaunchConfiguration()).toOSString());
 			properties.put(ITerminalsConnectorConstants.PROP_DATA_NO_RECONNECT, Boolean.FALSE);
 			try {
-				String[] env = LaunchUtils.getLaunchEnvironment(terminalConsole.getLaunch().getLaunchConfiguration());
+				String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
 				properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ENVIRONMENT, env);
 			} catch (CoreException e) {
 			}
 			ITerminalConnector connector = delegate.createTerminalConnector(properties);
-			tViewCtrl.setConnector(connector);
-			if (tViewCtrl instanceof ITerminalControl) {
-				((ITerminalControl)tViewCtrl).setConnectOnEnterIfClosed(false);
+			fViewControl.setConnector(connector);
+			if (fViewControl instanceof ITerminalControl) {
+				((ITerminalControl)fViewControl).setConnectOnEnterIfClosed(false);
 			}
 			
 			new UIJob(ConsoleMessages.ConsoleMessages_gdb_console_job) {
 				@Override
 				public IStatus runInUIThread(IProgressMonitor monitor) { 
-					if (tViewCtrl != null && !tViewCtrl.isDisposed()) {
-						tViewCtrl.clearTerminal();
-						tViewCtrl.connectTerminal();
+					if (fViewControl != null && !fViewControl.isDisposed()) {
+						fViewControl.clearTerminal();
+						fViewControl.connectTerminal();
 					}
 					return Status.OK_STATUS;
 				}
@@ -116,18 +119,18 @@ public class GdbConsolePage extends Page {
 
 	@Override
 	public Control getControl() {
-		return mainComposite;
+		return fMainComposite;
 	}
 
 	@Override
 	public void setFocus() {
-		tViewCtrl.setFocus();
+		fViewControl.setFocus();
 	}
 
 	@Override
 	public void dispose() {
 		super.dispose();
-		tViewCtrl.disposeTerminal();
+		fViewControl.disposeTerminal();
 	}
 
 //	public TerminalState getTerminalState() {
@@ -141,8 +144,8 @@ public class GdbConsolePage extends Page {
 //	}
 
 	public void disconnectTerminal() {
-		if (tViewCtrl.getState() != TerminalState.CLOSED) {
-			tViewCtrl.disconnectTerminal();
+		if (fViewControl.getState() != TerminalState.CLOSED) {
+			fViewControl.disconnectTerminal();
 		}
 	}
 
