@@ -1,17 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2015 Wind River Systems, Nokia and others.
+ * Copyright (c) 2015 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
- * Contributors:
- *     Nokia              - initial API and implementation with some code moved from GDBControl.
- *     Wind River System
- *     Ericsson
- *     Marc Khouzam (Ericsson) - Use the new IMIBackend2 interface (Bug 350837)
- *     Mark Bozeman (Mentor Graphics) - Report GDB start failures (Bug 376203)
- *     Iulia Vasii (Freescale Semiconductor) - Separate GDB command from its arguments (Bug 445360)
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
@@ -21,7 +13,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PipedOutputStream;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 
+import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
+import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence;
 import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
@@ -29,7 +25,6 @@ import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
 import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
-import org.eclipse.cdt.utils.CommandLineUtil;
 import org.eclipse.cdt.utils.pty.PTY;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
@@ -47,10 +42,11 @@ import org.eclipse.debug.core.ILaunchConfiguration;
  * 
  * @since 5.0
  */
-public class GDBBackend_7_11 extends GDBBackend {
+public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsole {
 
 	private PTY fPty;
 	private InputStream fErrorStream;
+	private DataRequestMonitor<Process> fWaitingForGDBProcess;
 
 	public GDBBackend_7_11(DsfSession session, ILaunchConfiguration lc) {
 		super(session, lc);
@@ -81,30 +77,13 @@ public class GDBBackend_7_11 extends GDBBackend {
 	@Override
     protected Step[] getShutdownSteps() {
         return new Sequence.Step[] {
-                new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-				new SetupNewConsole(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-                new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-                new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-				new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-            };
-    }        
-
-	@Override
-	protected String[] getGDBCommandLineArray() {
-		if (fPty == null) {
-			return super.getGDBCommandLineArray();
-		}
-
-		// The goal here is to keep options to an absolute minimum.
-		// All configuration should be done in the final launch sequence
-		// to allow for more flexibility.
-
-		String cmd = getGDBPath().toOSString() +
-				" --nx"; //$NON-NLS-1$
-
-		// Parse to properly handle spaces and such things (bug 458499)
-		return CommandLineUtil.argumentsToArray(cmd);
-	}
+            new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+            new SetupNewConsole(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+            new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+            new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+            new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+        };
+    }
 
 	@Override
 	public OutputStream getMIOutputStream() {
@@ -140,12 +119,32 @@ public class GDBBackend_7_11 extends GDBBackend {
 	}
 
 	@Override
-	protected Process launchGDBProcess(String[] commandLine) throws CoreException {
+	protected Process launchGDBProcess(String commandLine) throws CoreException {
 		if (fPty == null) {
 			return super.launchGDBProcess(commandLine);
 		}
-		//TODO
-		return null;
+		Query<Process> waitForProcess = new Query<Process>() {
+			@Override
+            protected void execute(DataRequestMonitor<Process> rm) {
+				fWaitingForGDBProcess = rm;
+				// Don't call done now.  It will instead be called
+				// when the process is started by the GdbConsole
+				// class and set here with the callback
+				// IGDBBackendWithConsole.gdbProcessStarted()
+            }
+		};
+		Exception e = null;
+		try {
+			getExecutor().execute(waitForProcess);
+			return waitForProcess.get();
+		} catch (RejectedExecutionException excep) {
+			e = excep;
+		} catch (InterruptedException excep) {
+			e = excep;
+		} catch (ExecutionException excep) {
+			e = excep;
+		}
+		throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, e.getMessage(), e));
 	}
 	
 	protected class CreatePty extends InitializationShutdownStep {
@@ -239,5 +238,11 @@ public class GDBBackend_7_11 extends GDBBackend {
 		protected void shutdown(RequestMonitor requestMonitor) {
 			requestMonitor.done();
 		}
+	}
+
+	@Override
+	public boolean gdbProcessStarted(Process proc) {
+		fWaitingForGDBProcess.done(proc);
+		return true;
 	}
 }

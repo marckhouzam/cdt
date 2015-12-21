@@ -27,6 +27,7 @@ import org.eclipse.tm.internal.terminal.control.TerminalViewControlFactory;
 import org.eclipse.tm.internal.terminal.provisional.api.ITerminalConnector;
 import org.eclipse.tm.internal.terminal.provisional.api.ITerminalControl;
 import org.eclipse.tm.internal.terminal.provisional.api.TerminalState;
+import org.eclipse.tm.terminal.connector.process.ProcessConnector;
 import org.eclipse.tm.terminal.view.core.interfaces.constants.ITerminalsConnectorConstants;
 import org.eclipse.tm.terminal.view.ui.interfaces.ILauncherDelegate;
 import org.eclipse.tm.terminal.view.ui.launcher.LauncherDelegateManager;
@@ -103,7 +104,7 @@ public class GdbConsolePage extends Page {
 			if (fViewControl instanceof ITerminalControl) {
 				((ITerminalControl)fViewControl).setConnectOnEnterIfClosed(false);
 			}
-			
+
 			new UIJob(ConsoleMessages.ConsoleMessages_gdb_console_job) {
 				@Override
 				public IStatus runInUIThread(IProgressMonitor monitor) { 
@@ -114,6 +115,9 @@ public class GdbConsolePage extends Page {
 					return Status.OK_STATUS;
 				}
 			}.schedule();
+
+			ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
+			System.out.println(proc);
 		}
 	}
 

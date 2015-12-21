@@ -45,4 +45,5 @@ Export-Package: org.eclipse.cdt.dsf.gdb.internal.ui;x-friends:="org.eclipse.cdt.
  org.eclipse.cdt.dsf.gdb.internal.ui.viewmodel.breakpoints;x-internal:=true,
  org.eclipse.cdt.dsf.gdb.internal.ui.viewmodel.commands;x-internal:=true,
  org.eclipse.cdt.dsf.gdb.internal.ui.viewmodel.launch;x-internal:=true
-Import-Package: com.ibm.icu.text
+Import-Package: com.ibm.icu.text,
+ org.eclipse.tm.terminal.connector.process
