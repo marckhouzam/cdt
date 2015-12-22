@@ -42,20 +42,9 @@ public class GdbConsolePage extends Page {
 	private Composite fMainComposite;
 	private ITerminalViewControl fViewControl;
 
-	private final ITerminalListener fListener = new ITerminalListener() {
-		@Override
-		public void setState(TerminalState state) {
-		}
-
-		@Override
-		public void setTerminalTitle(final String title) {
-			// ignore titles coming from the widget
-		}
-	};
-
 	public GdbConsolePage(GdbConsole gdbConsole, String encoding) {
 		fGdbConsole = gdbConsole;
-		this.fEncoding = encoding;
+		fEncoding = encoding;
 	}
 
 	public GdbConsole getConsole() {
@@ -73,9 +62,14 @@ public class GdbConsolePage extends Page {
 		fMainComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		fMainComposite.setLayout(new FillLayout());
 
-		fViewControl = TerminalViewControlFactory.makeControl(fListener,
+		fViewControl = TerminalViewControlFactory.makeControl(
+				new ITerminalListener() {
+					@Override public void setState(TerminalState state) {}
+					@Override public void setTerminalTitle(final String title) {}
+		        },
 				fMainComposite,
-				new ITerminalConnector[] {}, true);
+				new ITerminalConnector[] {}, 
+				true);
 		
 		try {
 			fViewControl.setEncoding(fEncoding);
@@ -116,8 +110,6 @@ public class GdbConsolePage extends Page {
 				}
 			}.schedule();
 
-			ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
-			System.out.println(proc);
 		}
 	}
 
@@ -137,6 +129,14 @@ public class GdbConsolePage extends Page {
 		fViewControl.disposeTerminal();
 	}
 
+	Process getProcess() {
+		ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
+		if (proc != null) {
+			return proc.getProcess();
+		}
+		return null;
+	}
+	
 //	public TerminalState getTerminalState() {
 //		return tViewCtrl.getState();
 //	}

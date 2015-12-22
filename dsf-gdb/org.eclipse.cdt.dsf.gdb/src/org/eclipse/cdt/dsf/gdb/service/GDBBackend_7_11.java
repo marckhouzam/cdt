@@ -46,6 +46,7 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 
 	private PTY fPty;
 	private InputStream fErrorStream;
+    private Process fProcess;
 	private DataRequestMonitor<Process> fWaitingForGDBProcess;
 
 	public GDBBackend_7_11(DsfSession session, ILaunchConfiguration lc) {
@@ -62,10 +63,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 
 		final Sequence.Step[] initializeSteps = new Sequence.Step[] {
 				new CreatePty(InitializationShutdownStep.Direction.INITIALIZING),
+				// Register right away to allow the GdbConsole to find us
+				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new MonitorJobStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new SetupNewConsole(InitializationShutdownStep.Direction.INITIALIZING),
-				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
 		};
 
 		Sequence startupSequence = new Sequence(getExecutor(), requestMonitor) {
@@ -126,11 +128,15 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		Query<Process> waitForProcess = new Query<Process>() {
 			@Override
             protected void execute(DataRequestMonitor<Process> rm) {
-				fWaitingForGDBProcess = rm;
-				// Don't call done now.  It will instead be called
-				// when the process is started by the GdbConsole
-				// class and set here with the callback
-				// IGDBBackendWithConsole.gdbProcessStarted()
+				if (fProcess != null) {
+					rm.done(fProcess);
+				} else {
+					fWaitingForGDBProcess = rm;
+					// Don't call done now.  It will instead be called
+					// when the process is started by the GdbConsole
+					// class and set here with the callback
+					// IGDBBackendWithConsole.gdbProcessStarted()
+				}
             }
 		};
 		Exception e = null;
@@ -241,8 +247,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	}
 
 	@Override
-	public boolean gdbProcessStarted(Process proc) {
-		fWaitingForGDBProcess.done(proc);
+	public boolean setGdbProcess(Process proc) {
+		fProcess = proc;
+		if (fWaitingForGDBProcess != null) {
+			fWaitingForGDBProcess.done(proc);
+		}
 		return true;
 	}
 }

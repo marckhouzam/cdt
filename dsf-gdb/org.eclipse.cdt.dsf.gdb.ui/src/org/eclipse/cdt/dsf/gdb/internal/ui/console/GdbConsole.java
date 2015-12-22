@@ -7,6 +7,18 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
+import java.util.concurrent.RejectedExecutionException;
+
+import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
+import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
+import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
+import org.eclipse.cdt.dsf.gdb.service.IGDBBackend;
+import org.eclipse.cdt.dsf.gdb.service.IGDBBackendWithConsole;
+import org.eclipse.cdt.dsf.mi.service.IMIBackend;
+import org.eclipse.cdt.dsf.mi.service.IMIBackend.BackendStateChangedEvent;
+import org.eclipse.cdt.dsf.service.DsfServiceEventHandler;
+import org.eclipse.cdt.dsf.service.DsfServicesTracker;
+import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -20,12 +32,14 @@ import org.eclipse.ui.part.IPageBookViewPage;
  */
 public class GdbConsole extends AbstractConsole {
 	private ILaunch fLaunch;
+	private DsfSession fSession;
 	private String fLabel = ""; //$NON-NLS-1$
 	private GdbConsolePage fPage;
 	
 	public GdbConsole(ILaunch launch, String label) {
 		super("", null); //$NON-NLS-1$
 		fLaunch = launch;
+        fSession = ((GdbLaunch)launch).getSession();
         fLabel = label;
         
         resetName();
@@ -34,6 +48,12 @@ public class GdbConsole extends AbstractConsole {
     @Override
 	protected void init() {
         super.init();
+        fSession.getExecutor().submit(new DsfRunnable() {
+            @Override
+        	public void run() {
+        		fSession.addServiceEventListener(GdbConsole.this, null);
+        	}
+        });
     }
     
 	@Override
@@ -41,8 +61,19 @@ public class GdbConsole extends AbstractConsole {
 		if (fPage != null) {
 			fPage.disconnectTerminal();
 		}
+        try {
+        	fSession.getExecutor().submit(new DsfRunnable() {
+                @Override
+        		public void run() {
+        			fSession.removeServiceEventListener(GdbConsole.this);
+        		}
+        	});
+		} catch (RejectedExecutionException e) {
+			// Session already disposed
+		}
+		super.dispose();
 	}
-	
+
 	public ILaunch getLaunch() { return fLaunch; }
     
     protected String computeName() {
@@ -92,5 +123,33 @@ public class GdbConsole extends AbstractConsole {
 		view.setFocus();
 		fPage = new GdbConsolePage(this, "UTF-8"); //$NON-NLS-1$
 		return fPage;
-	}	
+    }
+    
+    @DsfServiceEventHandler
+    public void eventDispatched(BackendStateChangedEvent event) {
+        if (event.getState() == IMIBackend.State.STARTED &&
+        		event.getSessionId().equals(fSession.getId())) 
+        {
+        	// Now that the backend service is started, we can set the process
+        	setProcessInService();        	
+        }
+    }
+    
+    private void setProcessInService() {
+    	try {
+    		fSession.getExecutor().submit(new DsfRunnable() {
+                @Override
+    			public void run() {
+    				DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
+    				IGDBBackend backend = tracker.getService(IGDBBackend.class);
+    				tracker.dispose();
+    				if (backend instanceof IGDBBackendWithConsole) {
+    					// Special method that need not be called on the executor
+    					((IGDBBackendWithConsole)backend).setGdbProcess(fPage.getProcess());
+    				}
+    			}
+    		});
+	    } catch (RejectedExecutionException e) {
+	    }
+	}
 }

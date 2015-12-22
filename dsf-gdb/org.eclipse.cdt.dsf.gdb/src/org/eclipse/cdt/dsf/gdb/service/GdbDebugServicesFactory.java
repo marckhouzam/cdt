@@ -88,8 +88,8 @@ public class GdbDebugServicesFactory extends AbstractDsfDebugServicesFactory {
 	public static final String GDB_7_7_VERSION = "7.7"; //$NON-NLS-1$
 	/** @since 4.8 */
 	public static final String GDB_7_10_VERSION = "7.10"; //$NON-NLS-1$
-	
-	private static final String GDB_7_11_VERSION = "7.10.88888";
+	/** @since 5.0 */
+	public static final String GDB_7_11_VERSION = "7.10.88888"; //$NON-NLS-1$
 
 	private final String fVersion;
 	
