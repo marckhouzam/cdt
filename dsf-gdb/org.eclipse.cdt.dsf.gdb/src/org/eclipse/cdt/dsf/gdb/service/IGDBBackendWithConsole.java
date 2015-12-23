@@ -12,5 +12,4 @@ package org.eclipse.cdt.dsf.gdb.service;
  */
 public interface IGDBBackendWithConsole {
 	boolean setGdbProcess(Process proc);
-
 }

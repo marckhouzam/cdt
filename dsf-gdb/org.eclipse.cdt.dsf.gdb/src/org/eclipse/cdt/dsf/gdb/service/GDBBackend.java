@@ -15,11 +15,9 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -621,52 +619,52 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                         return Status.OK_STATUS;
                     }
                     
-                    BufferedReader inputReader = null;
-                    BufferedReader errorReader = null;
-                    boolean success = false;
-                    try {
-                    	// Read initial GDB prompt
-                        inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
-                        String line;
-                        while ((line = inputReader.readLine()) != null) {
-                            line = line.trim();
-                            if (line.indexOf(getOutputToWaitFor()) != -1) {
-                            	success = true;
-                                break;
-                            }
-                        }
-                        
-                        // Failed to read initial prompt, check for error
-                        if (!success) {
-                        	errorReader = new BufferedReader(new InputStreamReader(getProcess().getErrorStream()));
-                        	String errorInfo = errorReader.readLine();
-                        	if (errorInfo == null) {
-                        		errorInfo = "GDB prompt not read"; //$NON-NLS-1$
-                        	}
-    	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, errorInfo, null));
-                        }
-                    } catch (IOException e) {
-                    	success = false;
-	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Error reading GDB output", e)); //$NON-NLS-1$
-                    }
-
-                    // In the case of failure, close the MI streams so
-                    // they are not leaked.
-                    if (!success)
-                    {
-	                	if (inputReader != null) {
-	                		try {
-								inputReader.close();
-							} catch (IOException e) {
-							}
-	                	}
-	                	if (errorReader != null) {
-	                		try {
-								errorReader.close();
-							} catch (IOException e) {
-							}
-	                	}
-                    }
+//                    BufferedReader inputReader = null;
+//                    BufferedReader errorReader = null;
+//                    boolean success = false;
+//                    try {
+//                    	// Read initial GDB prompt
+//                        inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
+//                        String line;
+//                        while ((line = inputReader.readLine()) != null) {
+//                            line = line.trim();
+//                            if (line.indexOf(getOutputToWaitFor()) != -1) {
+//                            	success = true;
+//                                break;
+//                            }
+//                        }
+//                        
+//                        // Failed to read initial prompt, check for error
+//                        if (!success) {
+//                        	errorReader = new BufferedReader(new InputStreamReader(getProcess().getErrorStream()));
+//                        	String errorInfo = errorReader.readLine();
+//                        	if (errorInfo == null) {
+//                        		errorInfo = "GDB prompt not read"; //$NON-NLS-1$
+//                        	}
+//    	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, errorInfo, null));
+//                        }
+//                    } catch (IOException e) {
+//                    	success = false;
+//	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Error reading GDB output", e)); //$NON-NLS-1$
+//                    }
+//
+//                    // In the case of failure, close the MI streams so
+//                    // they are not leaked.
+//                    if (!success)
+//                    {
+//	                	if (inputReader != null) {
+//	                		try {
+//								inputReader.close();
+//							} catch (IOException e) {
+//							}
+//	                	}
+//	                	if (errorReader != null) {
+//	                		try {
+//								errorReader.close();
+//							} catch (IOException e) {
+//							}
+//	                	}
+//                    }
                     
                     gdbLaunchRequestMonitor.done();
                     return Status.OK_STATUS;

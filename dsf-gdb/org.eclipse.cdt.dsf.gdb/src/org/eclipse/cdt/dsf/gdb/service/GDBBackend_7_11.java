@@ -79,10 +79,10 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	@Override
     protected Step[] getShutdownSteps() {
         return new Sequence.Step[] {
-            new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new SetupNewConsole(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
+            new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN),
         };
     }
@@ -201,19 +201,19 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				String line;
 				int numLines = 0;
                 boolean success = false;
-				while ((line = inputReader.readLine()) != null && numLines++ < 10) {
-					line = line.trim();
-					if (line.indexOf("New GDB console allocated") != -1) { //$NON-NLS-1$
-                    	success = true;
-                    	break;
-					}
-				}
-
-                // Failed to trigger new console
-                if (!success) {
-                	requestMonitor.done(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Unable to create new console", null)); //$NON-NLS-1$
-                	return;
-                }
+//				while ((line = inputReader.readLine()) != null && numLines++ < 10) {
+//					line = line.trim();
+//					if (line.indexOf("New GDB console allocated") != -1) { //$NON-NLS-1$
+//                    	success = true;
+//                    	break;
+//					}
+//				}
+//
+//                // Failed to trigger new console
+//                if (!success) {
+//                	requestMonitor.done(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Unable to create new console", null)); //$NON-NLS-1$
+//                	return;
+//                }
                 
 				// Wait for initial GDB prompt on the new MI stream
                 success = false;
