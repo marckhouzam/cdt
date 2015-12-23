@@ -125,7 +125,10 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
 
     protected IProcess getConsoleProcess() {
     	if (fConsole instanceof org.eclipse.debug.ui.console.IConsole) {
-    		return ((org.eclipse.debug.ui.console.IConsole)fConsole).getProcess();
+    		IProcess process = ((org.eclipse.debug.ui.console.IConsole)fConsole).getProcess();
+    		if (process instanceof InferiorRuntimeProcess) {
+    			return process;
+    		}
     	}
     	return null;
     }
@@ -156,6 +159,10 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
         	return null;
         }
 
+        if (context instanceof GDBProcess) {
+        	return (GDBProcess)context;
+        }
+        
 		if (context != null) {
 			// Look for the process that this context refers to, so we can select its console
 			IDMContext dmc = context.getAdapter(IDMContext.class);
@@ -194,6 +201,14 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
     @Override
 	public void debugContextChanged(DebugContextEvent event) {
 		if ((event.getFlags() & DebugContextEvent.ACTIVATED) > 0) {
+			if (fView != null && fConsole instanceof GdbCliConsole) {
+				IProcess currentProcess = getCurrentProcess();
+				if (currentProcess instanceof GDBProcess && 
+						((GdbCliConsole)fConsole).getLaunch().equals(currentProcess.getLaunch())) {
+					fView.display(fConsole);
+				}
+			}
+			
 			IProcess consoleProcess = getConsoleProcess();
 			if (fView != null && consoleProcess != null && consoleProcess.equals(getCurrentProcess())) {
 	            fView.display(fConsole);
