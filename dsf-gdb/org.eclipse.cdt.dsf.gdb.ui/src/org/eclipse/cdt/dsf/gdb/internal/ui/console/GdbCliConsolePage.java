@@ -13,9 +13,6 @@ import java.util.Map;
 
 import org.eclipse.cdt.dsf.gdb.launching.LaunchUtils;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
@@ -33,21 +30,20 @@ import org.eclipse.tm.terminal.view.ui.interfaces.ILauncherDelegate;
 import org.eclipse.tm.terminal.view.ui.launcher.LauncherDelegateManager;
 import org.eclipse.ui.part.IPageSite;
 import org.eclipse.ui.part.Page;
-import org.eclipse.ui.progress.UIJob;
 
-public class GdbConsolePage extends Page {
+public class GdbCliConsolePage extends Page {
 
-	private final GdbConsole fGdbConsole;
+	private final GdbCliConsole fGdbConsole;
 	private final String fEncoding;
 	private Composite fMainComposite;
 	private ITerminalViewControl fViewControl;
 
-	public GdbConsolePage(GdbConsole gdbConsole, String encoding) {
+	public GdbCliConsolePage(GdbCliConsole gdbConsole, String encoding) {
 		fGdbConsole = gdbConsole;
 		fEncoding = encoding;
 	}
 
-	public GdbConsole getConsole() {
+	public GdbCliConsole getConsole() {
 		return fGdbConsole;
 	}
 
@@ -56,6 +52,12 @@ public class GdbConsolePage extends Page {
 		super.init(pageSite);
 	}
 
+	@Override
+	public void dispose() {
+		super.dispose();
+		fViewControl.disposeTerminal();
+	}
+	
 	@Override
 	public void createControl(Composite parent) {
 		fMainComposite = new Composite(parent, SWT.NONE);
@@ -75,18 +77,51 @@ public class GdbConsolePage extends Page {
 			fViewControl.setEncoding(fEncoding);
 		} catch (UnsupportedEncodingException e) {
 		}
-				
-		ILauncherDelegate delegate = LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
+		
+		// Now wait for the Backend service to be ready before
+		// actually starting the GDB process
+	}
+
+	@Override
+	public Control getControl() {
+		return fMainComposite;
+	}
+
+	@Override
+	public void setFocus() {
+		fViewControl.setFocus();
+	}
+	
+	public void disconnectTerminal() {
+		if (fViewControl.getState() != TerminalState.CLOSED) {
+			fViewControl.disconnectTerminal();
+		}
+	}
+
+	/**
+	 * Returns the process that was started within this console page.
+	 * Returns null if no process can be found.
+	 */
+	public Process getProcess() {
+		ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
+		if (proc != null) {
+			return proc.getProcess();
+		}
+		return null;
+	}
+	
+	public void startProcess(String processCommand) {
+		ILauncherDelegate delegate = 
+				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
 		if (delegate != null) {
 			// Create the terminal connector
 			Map<String, Object> properties = new HashMap<String, Object>();
 			properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
 			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fEncoding);
-			
+
 			// It would be better to call the backend service to get this information
 			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, 
-					LaunchUtils.getGDBPath(fGdbConsole.getLaunch().getLaunchConfiguration()).toOSString());
+			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, processCommand);
 			properties.put(ITerminalsConnectorConstants.PROP_DATA_NO_RECONNECT, Boolean.FALSE);
 			try {
 				String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
@@ -99,60 +134,31 @@ public class GdbConsolePage extends Page {
 				((ITerminalControl)fViewControl).setConnectOnEnterIfClosed(false);
 			}
 
-			new UIJob(ConsoleMessages.ConsoleMessages_gdb_console_job) {
+			// Must use syncExec because the logic within must complete before the rest
+			// of the class methods (specifically getProcess()) is called
+			fMainComposite.getDisplay().syncExec(new Runnable() {
 				@Override
-				public IStatus runInUIThread(IProgressMonitor monitor) { 
+				public void run() {
 					if (fViewControl != null && !fViewControl.isDisposed()) {
 						fViewControl.clearTerminal();
 						fViewControl.connectTerminal();
 					}
-					return Status.OK_STATUS;
 				}
-			}.schedule();
-
+			});
 		}
 	}
 
-	@Override
-	public Control getControl() {
-		return fMainComposite;
-	}
-
-	@Override
-	public void setFocus() {
-		fViewControl.setFocus();
-	}
-
-	@Override
-	public void dispose() {
-		super.dispose();
-		fViewControl.disposeTerminal();
-	}
-
-	Process getProcess() {
-		ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
-		if (proc != null) {
-			return proc.getProcess();
-		}
-		return null;
-	}
-	
 //	public TerminalState getTerminalState() {
 //		return tViewCtrl.getState();
 //	}
-
+//
 //	public void connectTerminal() {
 //		if (!tViewCtrl.isConnected()) {
 //			connectTerminalJob.schedule();
 //		}
 //	}
-
-	public void disconnectTerminal() {
-		if (fViewControl.getState() != TerminalState.CLOSED) {
-			fViewControl.disconnectTerminal();
-		}
-	}
-
+//
+//
 //	public void setScrollLock(boolean enabled) {
 //		tViewCtrl.setScrollLock(enabled);
 //	}

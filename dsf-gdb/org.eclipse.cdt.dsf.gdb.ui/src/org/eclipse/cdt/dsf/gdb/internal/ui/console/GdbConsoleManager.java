@@ -25,13 +25,21 @@ import org.eclipse.ui.console.IConsole;
 import org.eclipse.ui.console.IConsoleManager;
 
 /**
- * A tracing console manager which adds and removes tracing consoles
- * based on launch events and preference events.
- * 
- * @since 2.1
- * This class was moved from package org.eclipse.cdt.dsf.gdb.internal.ui.tracing
+ * A console manager for GDB sessions which adds and removes: 
+
+ * 1- gdb traces consoles
+ *    These consoles can be enabled or disabled using a preference.
+ *    They support a configurable size through the use of water marks 
+ *    They apply to {@link ITracedLaunch}
+ * 2- gdb cli consoles
+ *    These consoles cannot be enabled/disabled by the user.
+ *    However, they are only supported by GDB >= 7.11;
+ *    to handled this, the console itself will use the DSF Backend
+ *    service to establish if it should be used or not.
+ *    These consoles apply to {@link GdbLaunch} running GDB >= 7.11
+ *    
  */
-public class TracingConsoleManager implements ILaunchesListener2, IPropertyChangeListener {
+public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeListener {
 
 	/**
 	 * The number of characters that should be deleted once the GDB traces console
@@ -54,13 +62,13 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 	/**
 	 * The maximum number of characters that are allowed per console
 	 */
-	private int fMaxNumCharacters = 500000;
+	private int fTracingMaxNumCharacters = 500000;
 	
 	/**
 	 * The number of characters that will be kept in the console once we
 	 * go over fMaxNumCharacters and that we must remove some characters
 	 */
-	private int fMinNumCharacters = fMaxNumCharacters - NUMBER_OF_CHARS_TO_DELETE;
+	private int fTracingMinNumCharacters = fTracingMaxNumCharacters - NUMBER_OF_CHARS_TO_DELETE;
 	
 	/**
 	 * Start the tracing console.  We don't do this in a constructor, because
@@ -72,8 +80,11 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 		store.addPropertyChangeListener(this);
 		fTracingEnabled = store.getBoolean(IGdbDebugPreferenceConstants.PREF_TRACES_ENABLE);
 		int maxChars = store.getInt(IGdbDebugPreferenceConstants.PREF_MAX_GDB_TRACES);
-		setWaterMarks(maxChars);
+		setTracingConsoleWaterMarks(maxChars);
 		
+		// Listen to launch events for both types of consoles
+		DebugPlugin.getDefault().getLaunchManager().addLaunchListener(this);
+
 		if (fTracingEnabled) {
 			toggleTracing(true);
 		}
@@ -82,38 +93,46 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 	public void shutdown() {
 		DebugPlugin.getDefault().getLaunchManager().removeLaunchListener(this);
 		GdbUIPlugin.getDefault().getPreferenceStore().removePropertyChangeListener(this);
-		removeAllConsoles();
+		removeAllTracingConsoles();
+		removeAllCliConsoles();
 	}
 
 	protected void toggleTracing(boolean enabled) {
 		if (enabled) {
-			DebugPlugin.getDefault().getLaunchManager().addLaunchListener(this);
-			addAllConsoles();
+			addAllTracingConsoles();
 		} else {
-			DebugPlugin.getDefault().getLaunchManager().removeLaunchListener(this);
-			removeAllConsoles();
+			removeAllTracingConsoles();
 		}
 	}
 	
-	protected void addAllConsoles() {
+	protected void addAllTracingConsoles() {
 		ILaunch[] launches = DebugPlugin.getDefault().getLaunchManager().getLaunches();
 		for (ILaunch launch : launches) {
-			addConsole(launch);
+			addTracingConsole(launch);
 		}
 	}
 
-	protected void removeAllConsoles() {
+	protected void removeAllTracingConsoles() {
 		ILaunch[] launches = DebugPlugin.getDefault().getLaunchManager().getLaunches();
 		for (ILaunch launch : launches) {
-			removeConsole(launch);
+			removeTracingConsole(launch);
+		}
+	}
+
+	protected void removeAllCliConsoles() {
+		ILaunch[] launches = DebugPlugin.getDefault().getLaunchManager().getLaunches();
+		for (ILaunch launch : launches) {
+			removeCliConsole(launch);
 		}
 	}
 
     @Override
 	public void launchesAdded(ILaunch[] launches) {
 		for (ILaunch launch : launches) {
-			addConsole(launch);
-			addGdbConsole(launch);
+			if (fTracingEnabled) {
+				addTracingConsole(launch);
+			}
+			createCliConsole(launch);
 		}
 	}
 
@@ -124,19 +143,24 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
     @Override
 	public void launchesRemoved(ILaunch[] launches) {
 		for (ILaunch launch : launches) {
-			removeConsole(launch);
-			removeGdbConsole(launch);
+			if (fTracingEnabled) {
+				removeTracingConsole(launch);
+			}
+			removeCliConsole(launch);
 		}
 	}
 	
     @Override
 	public void launchesTerminated(ILaunch[] launches) {
 		for (ILaunch launch : launches) {
-			// Since we already had a console, don't get rid of it
-			// just yet.  Simply rename it to show it is terminated.
-			renameConsole(launch);
-			renameGdbConsole(launch);
-			disposeGdbConsole(launch);
+			if (fTracingEnabled) {
+				// Since we already had a console, don't get rid of it
+				// just yet.  Simply rename it to show it is terminated.
+				renameTracingConsole(launch);
+			}
+
+			stopCliConsole(launch);
+			renameCliConsole(launch);
 		}
 	}
 	
@@ -147,87 +171,88 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 			toggleTracing(fTracingEnabled);
 		} else if (event.getProperty().equals(IGdbDebugPreferenceConstants.PREF_MAX_GDB_TRACES)) {
 			int maxChars = (Integer)event.getNewValue();
-			updateAllConsoleWaterMarks(maxChars);
+			updateAllTracingConsoleWaterMarks(maxChars);
 		}
-
 	}
 
-	protected void addConsole(ILaunch launch) {
-		// Tracing consoles are only added to ITracingLaunches
+	protected void addTracingConsole(ILaunch launch) {		
+		// Tracing consoles are only added to ITracedLaunches
 		if (launch instanceof ITracedLaunch) {
 			// Make sure we didn't already add this console
-			if (getConsole(launch) == null) {
-				if (launch.isTerminated() == false) {
-					// Create and  new tracing console.
-					TracingConsole console = new TracingConsole(launch, ConsoleMessages.ConsoleMessages_trace_console_name);
-					console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
-					ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
-				} // else we don't display a new console for a terminated launch
-			}
-		}
-	}
-
-	protected void addGdbConsole(ILaunch launch) {
-		// Tracing consoles are only added to ITracingLaunches
-		if (launch instanceof GdbLaunch) {
-			// Make sure we didn't already add this console
-			if (getGdbConsole(launch) == null) {
+			if (getTracingConsole(launch) == null) {
 				if (!launch.isTerminated()) {
-					// Create and  new tracing console.
-					GdbConsole console = new GdbConsole(launch, ConsoleMessages.ConsoleMessages_gdb_console_name);
-//					console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
+					// Create an new tracing console.
+					TracingConsole console = new TracingConsole(launch, ConsoleMessages.ConsoleMessages_trace_console_name);
+					console.setWaterMarks(fTracingMinNumCharacters, fTracingMaxNumCharacters);
 					ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
-				} // else we don't display a new console for a terminated launch
+				} // else we don't create a new console for a terminated launch
 			}
 		}
 	}
 
-	protected void removeConsole(ILaunch launch) {
-		if (launch instanceof ITracedLaunch) {
-			TracingConsole console = getConsole(launch);
-			if (console != null) {
-				ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
-			}
-		}
-	}
-
-	protected void removeGdbConsole(ILaunch launch) {
+	protected void createCliConsole(ILaunch launch) {
+		// Cli consoles are only added for GdbLaunches and if supported by the backend service
+		// We know this by looking for a backend service of type IGdbBackedWithConsole
 		if (launch instanceof GdbLaunch) {
-			GdbConsole console = getGdbConsole(launch);
+			// Create an new Cli console but let it register itself with the console manager.
+			new GdbCliConsole(launch, ConsoleMessages.ConsoleMessages_gdb_console_name);
+			//	console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
+			
+			// Don't add this console to the console manager yet, as we don't know if we
+			// will keep it or not.  The console itself will figure this out and register itself.
+		}
+	}
+
+	protected void removeTracingConsole(ILaunch launch) {
+		if (launch instanceof ITracedLaunch) {
+			TracingConsole console = getTracingConsole(launch);
 			if (console != null) {
 				ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
 			}
 		}
 	}
 
-	protected void renameConsole(ILaunch launch) {
+	protected void removeCliConsole(ILaunch launch) {
+		if (launch instanceof GdbLaunch) {
+			GdbCliConsole console = getCliConsole(launch);
+			if (console != null) {
+				ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
+			}
+		}
+	}
+
+	protected void renameTracingConsole(ILaunch launch) {
 		if (launch instanceof ITracedLaunch) {
-			TracingConsole console = getConsole(launch);
+			TracingConsole console = getTracingConsole(launch);
 			if (console != null) {
 				console.resetName();
 			}		
 		}
 	}
 
-	protected void renameGdbConsole(ILaunch launch) {
+	protected void renameCliConsole(ILaunch launch) {
 		if (launch instanceof GdbLaunch) {
-			GdbConsole console = getGdbConsole(launch);
+			GdbCliConsole console = getCliConsole(launch);
 			if (console != null) {
 				console.resetName();
 			}		
 		}
 	}
 	
-	protected void disposeGdbConsole(ILaunch launch) {
+	/**
+	 * Stop the CliConsole to prevent it from automatically
+	 * restarting the GDB process after it has terminated.
+	 */
+	protected void stopCliConsole(ILaunch launch) {
 		if (launch instanceof GdbLaunch) {
-			GdbConsole console = getGdbConsole(launch);
+			GdbCliConsole console = getCliConsole(launch);
 			if (console != null) {
-				console.dispose();
+				console.stop();
 			}		
 		}
 	}
 
-	private TracingConsole getConsole(ILaunch launch) {
+	private TracingConsole getTracingConsole(ILaunch launch) {
 		ConsolePlugin plugin = ConsolePlugin.getDefault();
 		if (plugin != null) {
 			// I've seen the plugin be null when running headless JUnit tests
@@ -245,15 +270,15 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 		return null;
 	}
 	
-	private GdbConsole getGdbConsole(ILaunch launch) {
+	private GdbCliConsole getCliConsole(ILaunch launch) {
 		ConsolePlugin plugin = ConsolePlugin.getDefault();
 		if (plugin != null) {
-			// I've seen the plugin be null when running headless JUnit tests
+			// This plugin can be null when running headless JUnit tests
 			IConsoleManager manager = plugin.getConsoleManager(); 
 			IConsole[] consoles = manager.getConsoles();
 			for (IConsole console : consoles) {
-				if (console instanceof GdbConsole) {
-					GdbConsole gdbConsole = (GdbConsole)console;
+				if (console instanceof GdbCliConsole) {
+					GdbCliConsole gdbConsole = (GdbCliConsole)console;
 					if (gdbConsole.getLaunch().equals(launch)) {
 						return gdbConsole;
 					}
@@ -263,36 +288,33 @@ public class TracingConsoleManager implements ILaunchesListener2, IPropertyChang
 		return null;
 	}
 
-	/** @since 2.2 */
-	protected void setWaterMarks(int maxChars) {
+	protected void setTracingConsoleWaterMarks(int maxChars) {
 		if (maxChars < (MIN_NUMBER_OF_CHARS_TO_KEEP * 2)) {
 			maxChars = MIN_NUMBER_OF_CHARS_TO_KEEP * 2;
 		}
 		
-		fMaxNumCharacters = maxChars;
+		fTracingMaxNumCharacters = maxChars;
 		// If the max number of chars is anything below the number of chars we are going to delete
 		// (plus our minimum buffer), we only keep the minimum.
 		// If the max number of chars is bigger than the number of chars we are going to delete (plus
 		// the minimum buffer), we truncate a fixed amount chars.
-		fMinNumCharacters = maxChars < (NUMBER_OF_CHARS_TO_DELETE + MIN_NUMBER_OF_CHARS_TO_KEEP) 
+		fTracingMinNumCharacters = maxChars < (NUMBER_OF_CHARS_TO_DELETE + MIN_NUMBER_OF_CHARS_TO_KEEP) 
 								? MIN_NUMBER_OF_CHARS_TO_KEEP : maxChars - NUMBER_OF_CHARS_TO_DELETE;
 	}
 
-	/** @since 2.2 */
-	protected void updateAllConsoleWaterMarks(int maxChars) {
-		setWaterMarks(maxChars);
+	protected void updateAllTracingConsoleWaterMarks(int maxChars) {
+		setTracingConsoleWaterMarks(maxChars);
 		ILaunch[] launches = DebugPlugin.getDefault().getLaunchManager().getLaunches();
 		for (ILaunch launch : launches) {
-			updateConsoleWaterMarks(launch);
+			updateTracingConsoleWaterMarks(launch);
 		}
 	}
 	
-	/** @since 2.2 */
-	protected void updateConsoleWaterMarks(ILaunch launch) {
+	protected void updateTracingConsoleWaterMarks(ILaunch launch) {
 		if (launch instanceof ITracedLaunch) {
-			TracingConsole console = getConsole(launch);
+			TracingConsole console = getTracingConsole(launch);
 			if (console != null) {
-				console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
+				console.setWaterMarks(fTracingMinNumCharacters, fTracingMaxNumCharacters);
 			}		
 		}
 	}

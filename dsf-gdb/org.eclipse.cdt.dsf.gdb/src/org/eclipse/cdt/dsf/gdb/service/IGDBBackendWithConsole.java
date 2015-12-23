@@ -11,5 +11,15 @@ package org.eclipse.cdt.dsf.gdb.service;
   * @since 5.0
  */
 public interface IGDBBackendWithConsole {
-	boolean setGdbProcess(Process proc);
+	/**
+	 * Returns the command with arguments that should
+	 * be used to start GDB in the console.
+	 */
+	String[] getGdbLaunchCommand();
+	
+	/**
+	 * Sets the GDB process that was started by the console
+	 * so that the Backend service can make use of it.
+	 */
+	void setGdbProcess(Process proc);
 }
