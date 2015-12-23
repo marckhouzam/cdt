@@ -10,6 +10,8 @@ package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 import java.util.Arrays;
 import java.util.concurrent.RejectedExecutionException;
 
+import javax.swing.plaf.metal.MetalBorders.TableHeaderBorder;
+
 import org.eclipse.cdt.core.parser.util.StringUtil;
 import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
@@ -22,10 +24,12 @@ import org.eclipse.cdt.dsf.mi.service.IMIBackend.BackendStateChangedEvent;
 import org.eclipse.cdt.dsf.service.DsfServiceEventHandler;
 import org.eclipse.cdt.dsf.service.DsfServicesTracker;
 import org.eclipse.cdt.dsf.service.DsfSession;
+import org.eclipse.cdt.ui.dialogs.FastIndexerBlock;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.ui.DebugUITools;
+import org.eclipse.swt.internal.theme.Theme;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.console.AbstractConsole;
 import org.eclipse.ui.console.ConsolePlugin;
@@ -47,6 +51,7 @@ public class GdbCliConsole extends AbstractConsole {
 	private final DsfSession fSession;
 	private String fLabel = ""; //$NON-NLS-1$
 	private GdbCliConsolePage fPage;
+	private boolean fShouldStartProcess;
 	
 	public GdbCliConsole(ILaunch launch, String label) {
 		super("", null); //$NON-NLS-1$
@@ -137,9 +142,23 @@ public class GdbCliConsole extends AbstractConsole {
     }
 
     @Override
-	public IPageBookViewPage createPage(IConsoleView view) {
+	public synchronized IPageBookViewPage createPage(IConsoleView view) {
 		view.setFocus();
 		fPage = new GdbCliConsolePage(this, "UTF-8"); //$NON-NLS-1$
+		if (fShouldStartProcess) {
+			fShouldStartProcess = false;
+		   try {
+		    	fSession.getExecutor().submit(new DsfRunnable() {
+		            @Override
+		    	    public void run() {
+		            	this is too fast, the page content is not initialized yet
+		            	// to reproduce launch once then close console and launch again
+		            	startGdbProcess();
+		        	}
+		        });
+			} catch (RejectedExecutionException e) {
+			}
+		}
 		return fPage;
     }
     
@@ -149,30 +168,51 @@ public class GdbCliConsole extends AbstractConsole {
         		event.getSessionId().equals(fSession.getId())) 
         {
         	// Now that the backend service is started, we can start the GDB process
-        	startGdbProcess();        	
+        	if (canStartGdbProcess()) {
+        		startGdbProcess();
+        	}
         }
     }
-    
+
     @ConfinedToDsfExecutor("fsession.getExecutor()")
     private void startGdbProcess() {
+    	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
+    	IGDBBackendWithConsole backend = (IGDBBackendWithConsole)tracker.getService(IGDBBackend.class);
+    	tracker.dispose();
+
+		// Start the GDB process as specified by the backend service
+		String[] command = backend.getGdbLaunchCommand();
+		String gdbCommand = command[0];
+		String[] arguments = Arrays.copyOfRange(command, 1, command.length);
+		synchronized (this) {
+			fPage.startProcess(gdbCommand, StringUtil.join(arguments, " "));  //$NON-NLS-1$
+
+			// Let the backend service know about the process that was started
+			backend.setGdbProcess(fPage.getProcess());
+		}    	
+    }
+
+    
+    @ConfinedToDsfExecutor("fsession.getExecutor()")
+   	private boolean canStartGdbProcess() {
     	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
     	IGDBBackend backendTmp = tracker.getService(IGDBBackend.class);
     	tracker.dispose();
 
     	if (backendTmp instanceof IGDBBackendWithConsole) {
-    		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)backendTmp;
+    		synchronized (this) {
+    			if (fPage == null) {
+    				// Page is not ready, wait for it
+    				fShouldStartProcess = true;
+    				return false;
+    			}
+    		}
+    		return true;
 
-    		// Start the GDB process as specified by the backend service
-    		String[] command = backend.getGdbLaunchCommand();
-    		String gdbCommand = command[0];
-    		String[] arguments = Arrays.copyOfRange(command, 1, command.length);
-    		fPage.startProcess(gdbCommand, StringUtil.join(arguments, " "));  //$NON-NLS-1$
-
-    		// Let the backend service know about the process that was started
-    		backend.setGdbProcess(fPage.getProcess());
     	} else {
     		// GDB is too old: we cannot use this console.  Let's dispose of it to clean up.
     		ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{GdbCliConsole.this});
+    		return false;
     	}
     }
 }

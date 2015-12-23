@@ -198,9 +198,13 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 			GdbCliConsole console = new GdbCliConsole(launch, ConsoleMessages.ConsoleMessages_gdb_console_name);
 			//	console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
 
+			
 			// Register this console right away to allow it to initialize properly.
 			// The console may later find out it is not required and remove itself
 			ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
+			
+			// Very important to make sure the console view is open or else things will not work
+			ConsolePlugin.getDefault().getConsoleManager().showConsoleView(console);
 		}
 	}
 
