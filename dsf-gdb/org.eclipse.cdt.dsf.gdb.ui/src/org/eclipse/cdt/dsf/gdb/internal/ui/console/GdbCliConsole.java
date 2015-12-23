@@ -173,8 +173,6 @@ public class GdbCliConsole extends AbstractConsole {
     	} else {
     		// GDB is too old: we cannot use this console.  Let's dispose of it to clean up.
     		ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{GdbCliConsole.this});
-
-    		//						dispose();
     	}
     }
 }

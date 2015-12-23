@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2011 Marc-Andre Laperle and others.
+ * Copyright (c) 2010, 2015 Marc-Andre Laperle and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -57,7 +57,8 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
         	DebugUITools.getDebugContextManager().getContextService(fPage.getSite().getWorkbenchWindow()).addDebugContextListener(this);
         }
 
-		if(console instanceof TracingConsole || isConsoleGdbCli(console)) {
+		if (console instanceof TracingConsole || 
+				(isConsoleGdbCli(console) && console instanceof TextConsole)) {
 			TextConsole textConsole = (TextConsole) console;
 
 			// Add the save console action
@@ -80,6 +81,9 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
 		if(console instanceof org.eclipse.debug.ui.console.IConsole) {
 			org.eclipse.debug.ui.console.IConsole debugConsole  = (org.eclipse.debug.ui.console.IConsole)console;
 			return (debugConsole.getProcess() instanceof GDBProcess);
+		}
+		if (console instanceof GdbCliConsole) {
+			return true;
 		}
 		return false;
 	}
@@ -187,9 +191,6 @@ public class ConsolePageParticipant implements IConsolePageParticipant, IDebugCo
 		return null;
 	}
 	
-	/* (non-Javadoc)
-	 * @see org.eclipse.debug.internal.ui.contexts.provisional.IDebugContextListener#contextEvent(org.eclipse.debug.internal.ui.contexts.provisional.DebugContextEvent)
-	 */
     @Override
 	public void debugContextChanged(DebugContextEvent event) {
 		if ((event.getFlags() & DebugContextEvent.ACTIVATED) > 0) {
