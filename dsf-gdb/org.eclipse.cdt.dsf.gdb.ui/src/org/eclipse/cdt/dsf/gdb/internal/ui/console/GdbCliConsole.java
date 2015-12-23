@@ -7,9 +7,11 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
+import java.util.Arrays;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.eclipse.cdt.core.parser.util.StringUtil;
+import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
 import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
@@ -33,14 +35,12 @@ import org.eclipse.ui.part.IPageBookViewPage;
 
 /**
  * A GDB CLI console.
- * This console actually runs a GDB process in CLI mode
- * to achieve a full-featured CLI interface.  This is only
- * supported with GDB >= 7.11.
+ * This console actually runs a GDB process in CLI mode to achieve a 
+ * full-featured CLI interface.  This is only supported with GDB >= 7.11.
  * 
- * This class will use the {@link IGdbBackendWithConsole}
- * service to know if it can be used or not.  If it can,
- * it will then register itself with the console manager;
- * if it cannot (GDB < 7.11), it will dispose itself.
+ * This class will use the {@link IGdbBackendWithConsole} service to know
+ * if it can be used or not. If it cannot be used (GDB < 7.11), it will 
+ * dispose and remove itself.
  */
 public class GdbCliConsole extends AbstractConsole {
 	private final ILaunch fLaunch;
@@ -54,21 +54,20 @@ public class GdbCliConsole extends AbstractConsole {
         fLabel = label;
         fSession = ((GdbLaunch)launch).getSession();
 
-        resetName();
+        resetName();        
 	}
 	
     @Override
 	protected void init() {
         super.init();
         fSession.getExecutor().submit(new DsfRunnable() {
-            @Override
+        	@Override
         	public void run() {
         		fSession.addServiceEventListener(GdbCliConsole.this, null);
         	}
         });
     }
     
-
 	@Override
 	protected void dispose() {
 		stop();
@@ -89,6 +88,7 @@ public class GdbCliConsole extends AbstractConsole {
         
 		if (fPage != null) {
 			fPage.disconnectTerminal();
+			fPage = null;
 		}
 	}
 
@@ -153,34 +153,28 @@ public class GdbCliConsole extends AbstractConsole {
         }
     }
     
+    @ConfinedToDsfExecutor("fsession.getExecutor()")
     private void startGdbProcess() {
-		try {
-			fSession.getExecutor().submit(new DsfRunnable() {
-				@Override
-				public void run() {
-					DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
-					IGDBBackend backendTmp = tracker.getService(IGDBBackend.class);
-					tracker.dispose();
+    	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
+    	IGDBBackend backendTmp = tracker.getService(IGDBBackend.class);
+    	tracker.dispose();
 
-					if (backendTmp instanceof IGDBBackendWithConsole) {
-						IGDBBackendWithConsole backend = (IGDBBackendWithConsole)backendTmp;
+    	if (backendTmp instanceof IGDBBackendWithConsole) {
+    		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)backendTmp;
 
-						// We have a good GDB version!  We're a go on the console;  let's register it.
-				        ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{GdbCliConsole.this});
+    		// Start the GDB process as specified by the backend service
+    		String[] command = backend.getGdbLaunchCommand();
+    		String gdbCommand = command[0];
+    		String[] arguments = Arrays.copyOfRange(command, 1, command.length);
+    		fPage.startProcess(gdbCommand, StringUtil.join(arguments, " "));  //$NON-NLS-1$
 
-				        // Start the GDB process as specified by the backend service
-						String gdbCommand = StringUtil.join(backend.getGdbLaunchCommand(), " ").trim(); //$NON-NLS-1$
-						fPage.startProcess(gdbCommand);
-						
-						// Let the backend service know about the process that was started
-						backend.setGdbProcess(fPage.getProcess());
-					} else {
-						// GDB is too old: we cannot use this console.  Let's dispose of it to clean up.
-						dispose();
-					}
-				}
-			});
-		} catch (RejectedExecutionException e) {
-	    }
-	}
+    		// Let the backend service know about the process that was started
+    		backend.setGdbProcess(fPage.getProcess());
+    	} else {
+    		// GDB is too old: we cannot use this console.  Let's dispose of it to clean up.
+    		ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{GdbCliConsole.this});
+
+    		//						dispose();
+    	}
+    }
 }

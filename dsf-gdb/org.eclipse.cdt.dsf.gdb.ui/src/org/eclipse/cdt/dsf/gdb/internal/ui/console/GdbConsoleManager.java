@@ -132,7 +132,7 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 			if (fTracingEnabled) {
 				addTracingConsole(launch);
 			}
-			createCliConsole(launch);
+			addCliConsole(launch);
 		}
 	}
 
@@ -190,16 +190,17 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		}
 	}
 
-	protected void createCliConsole(ILaunch launch) {
+	protected void addCliConsole(ILaunch launch) {
 		// Cli consoles are only added for GdbLaunches and if supported by the backend service
 		// We know this by looking for a backend service of type IGdbBackedWithConsole
 		if (launch instanceof GdbLaunch) {
-			// Create an new Cli console but let it register itself with the console manager.
-			new GdbCliConsole(launch, ConsoleMessages.ConsoleMessages_gdb_console_name);
+			// Create an new Cli console .
+			GdbCliConsole console = new GdbCliConsole(launch, ConsoleMessages.ConsoleMessages_gdb_console_name);
 			//	console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
-			
-			// Don't add this console to the console manager yet, as we don't know if we
-			// will keep it or not.  The console itself will figure this out and register itself.
+
+			// Register this console right away to allow it to initialize properly.
+			// The console may later find out it is not required and remove itself
+			ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
 		}
 	}
 

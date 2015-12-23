@@ -110,7 +110,7 @@ public class GdbCliConsolePage extends Page {
 		return null;
 	}
 	
-	public void startProcess(String processCommand) {
+	public void startProcess(String processCommand, String arguments) {
 		ILauncherDelegate delegate = 
 				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
 		if (delegate != null) {
@@ -122,6 +122,7 @@ public class GdbCliConsolePage extends Page {
 			// It would be better to call the backend service to get this information
 			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
 			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, processCommand);
+			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ARGS, arguments);
 			properties.put(ITerminalsConnectorConstants.PROP_DATA_NO_RECONNECT, Boolean.FALSE);
 			try {
 				String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
@@ -144,7 +145,7 @@ public class GdbCliConsolePage extends Page {
 						fViewControl.connectTerminal();
 					}
 				}
-			});
+			}); 
 		}
 	}
 
