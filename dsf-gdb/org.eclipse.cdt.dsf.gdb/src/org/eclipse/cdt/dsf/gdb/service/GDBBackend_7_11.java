@@ -7,10 +7,8 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PipedOutputStream;
 import java.util.concurrent.ExecutionException;
@@ -49,11 +47,9 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	private InputStream fErrorStream;
     private Process fProcess;
 	private DataRequestMonitor<Process> fWaitingForGDBProcess;
-	private final ILaunchConfiguration fLaunchConfiguration;
 
 	public GDBBackend_7_11(DsfSession session, ILaunchConfiguration lc) {
 		super(session, lc);
-		fLaunchConfiguration = lc;
 	}
 
 	@Override
@@ -70,7 +66,6 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new MonitorJobStep(InitializationShutdownStep.Direction.INITIALIZING),
-				new SetupNewConsole(InitializationShutdownStep.Direction.INITIALIZING),
 		};
 
 		Sequence startupSequence = new Sequence(getExecutor(), requestMonitor) {
@@ -82,7 +77,6 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	@Override
     protected Step[] getShutdownSteps() {
         return new Sequence.Step[] {
-            new SetupNewConsole(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
@@ -182,72 +176,6 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 			requestMonitor.done();
 		}
 	}
-	
-	protected class SetupNewConsole extends InitializationShutdownStep {
-		SetupNewConsole(Direction direction) { super(direction); }
-		@Override
-		public void initialize(final RequestMonitor requestMonitor) {
-			if (fPty == null) {
-				requestMonitor.done();
-				return;
-			}
-			
-			try {
-				StringBuffer buff = new StringBuffer("new-console "); //$NON-NLS-1$
-				buff.append(fPty.getSlaveName());
-				buff.append('\n');
-				getProcess().getOutputStream().write(buff.toString().getBytes());
-				getProcess().getOutputStream().flush();
-
-				// Wait for console to be ready by reading the process output
-				BufferedReader inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
-				String line;
-				int numLines = 0;
-                boolean success = false;
-//				while ((line = inputReader.readLine()) != null && numLines++ < 10) {
-//					line = line.trim();
-//					if (line.indexOf("New GDB console allocated") != -1) { //$NON-NLS-1$
-//                    	success = true;
-//                    	break;
-//					}
-//				}
-//
-//                // Failed to trigger new console
-//                if (!success) {
-//                	requestMonitor.done(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Unable to create new console", null)); //$NON-NLS-1$
-//                	return;
-//                }
-                
-				// Wait for initial GDB prompt on the new MI stream
-                success = false;
-				inputReader = new BufferedReader(new InputStreamReader(getMIInputStream()));
-				while ((line = inputReader.readLine()) != null) {
-					line = line.trim();
-					if (line.indexOf("(gdb)") != -1) { //$NON-NLS-1$
-						success = true;
-						break;
-					}
-				}
-
-				// Failed to read initial prompt on MI channel
-                if (!success) {
-                	requestMonitor.done(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Failed to read (gdb) prompt on MI channel", null)); //$NON-NLS-1$
-                	return;
-                }
-
-			} catch (IOException e) {
-				requestMonitor.done(new Status(IStatus.CANCEL, GdbPlugin.PLUGIN_ID, -1, "Unable to setup MI console", null)); //$NON-NLS-1$
-				return;
-			}
-
-			requestMonitor.done();
-		}
-
-		@Override
-		protected void shutdown(RequestMonitor requestMonitor) {
-			requestMonitor.done();
-		}
-	}
 
 	@Override
 	public void setGdbProcess(Process proc) {
@@ -272,7 +200,9 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				// startup printout, then turn pagination on again for the rest of the session
 				" -ex\\ \\\"set pagination off\\\"" + //$NON-NLS-1$
 				" -ex\\ \\\"show version\\\"" + //$NON-NLS-1$
-				" -ex\\ \\\"set pagination on\\\""; //$NON-NLS-1$
+				" -ex\\ \\\"set pagination on\\\"" + //$NON-NLS-1$
+				// Finally, trigger the new console to be used.
+				" -ex\\ \\\"new-console " + fPty.getSlaveName() + "\\\""; //$NON-NLS-1$ //$NON-NLS-2$
 
 		// Parse to properly handle spaces and such things (bug 458499)
 		return CommandLineUtil.argumentsToArray(cmd);
