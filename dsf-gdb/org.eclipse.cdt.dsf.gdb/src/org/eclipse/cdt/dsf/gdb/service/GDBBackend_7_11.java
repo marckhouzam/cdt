@@ -186,6 +186,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	}
 
 	@Override
+	public boolean shouldLaunchGdbCli() {
+		return true;
+	}
+	
+	@Override
 	public String[] getGdbLaunchCommand() {
 		String cmd = getGDBPath().toOSString() +
 				// Don't read the gdbinit file here. It is read explicitly in
@@ -207,4 +212,6 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		// Parse to properly handle spaces and such things (bug 458499)
 		return CommandLineUtil.argumentsToArray(cmd);
 	}
+
+
 }

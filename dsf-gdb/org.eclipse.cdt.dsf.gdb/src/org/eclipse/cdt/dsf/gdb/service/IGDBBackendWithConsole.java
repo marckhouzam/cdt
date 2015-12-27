@@ -11,6 +11,12 @@ package org.eclipse.cdt.dsf.gdb.service;
   * @since 5.0
  */
 public interface IGDBBackendWithConsole {
+	
+	/**
+	 * 
+	 */
+	boolean shouldLaunchGdbCli();
+	
 	/**
 	 * Returns the command with arguments that should
 	 * be used to start GDB in the console.

@@ -8,11 +8,23 @@
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 
+import org.eclipse.cdt.core.parser.util.StringUtil;
+import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
+import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
+import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
+import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
 import org.eclipse.cdt.dsf.gdb.launching.LaunchUtils;
+import org.eclipse.cdt.dsf.gdb.service.IGDBBackendWithConsole;
+import org.eclipse.cdt.dsf.mi.service.IMIBackend;
+import org.eclipse.cdt.dsf.service.DsfServicesTracker;
+import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
@@ -34,17 +46,20 @@ import org.eclipse.ui.part.Page;
 public class GdbCliConsolePage extends Page {
 
 	private final GdbCliConsole fGdbConsole;
-	private final String fEncoding;
+	private DsfSession fSession;
 	private Composite fMainComposite;
-	private ITerminalViewControl fViewControl;
+	
+	/** The control for the terminal widget embedded in the console */
+	private ITerminalViewControl fTerminalControl;
 
-	public GdbCliConsolePage(GdbCliConsole gdbConsole, String encoding) {
+	public GdbCliConsolePage(GdbCliConsole gdbConsole) {
 		fGdbConsole = gdbConsole;
-		fEncoding = encoding;
-	}
-
-	public GdbCliConsole getConsole() {
-		return fGdbConsole;
+		ILaunch launch = gdbConsole.getLaunch();
+		if (launch instanceof GdbLaunch) {
+			fSession = ((GdbLaunch)launch).getSession();
+		} else {
+			assert false;
+		}
 	}
 
 	@Override
@@ -55,7 +70,7 @@ public class GdbCliConsolePage extends Page {
 	@Override
 	public void dispose() {
 		super.dispose();
-		fViewControl.disposeTerminal();
+		fTerminalControl.disposeTerminal();
 	}
 	
 	@Override
@@ -64,22 +79,21 @@ public class GdbCliConsolePage extends Page {
 		fMainComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		fMainComposite.setLayout(new FillLayout());
 
-		fViewControl = TerminalViewControlFactory.makeControl(
+		fTerminalControl = TerminalViewControlFactory.makeControl(
 				new ITerminalListener() {
 					@Override public void setState(TerminalState state) {}
 					@Override public void setTerminalTitle(final String title) {}
 		        },
 				fMainComposite,
 				new ITerminalConnector[] {}, 
-				true);
+				false);
 		
 		try {
-			fViewControl.setEncoding(fEncoding);
+			fTerminalControl.setEncoding("UTF-8"); //$NON-NLS-1$
 		} catch (UnsupportedEncodingException e) {
 		}
 		
-		// Now wait for the Backend service to be ready before
-		// actually starting the GDB process
+		startGdbProcess();
 	}
 
 	@Override
@@ -89,12 +103,12 @@ public class GdbCliConsolePage extends Page {
 
 	@Override
 	public void setFocus() {
-		fViewControl.setFocus();
+		fTerminalControl.setFocus();
 	}
 	
 	public void disconnectTerminal() {
-		if (fViewControl.getState() != TerminalState.CLOSED) {
-			fViewControl.disconnectTerminal();
+		if (fTerminalControl.getState() != TerminalState.CLOSED) {
+			fTerminalControl.disconnectTerminal();
 		}
 	}
 
@@ -102,22 +116,22 @@ public class GdbCliConsolePage extends Page {
 	 * Returns the process that was started within this console page.
 	 * Returns null if no process can be found.
 	 */
-	public Process getProcess() {
-		ProcessConnector proc = fViewControl.getTerminalConnector().getAdapter(ProcessConnector.class);
+	private Process getProcess() {
+		ProcessConnector proc = fTerminalControl.getTerminalConnector().getAdapter(ProcessConnector.class);
 		if (proc != null) {
 			return proc.getProcess();
 		}
 		return null;
 	}
 	
-	public void startProcess(String processCommand, String arguments) {
+	private void startProcess(String processCommand, String arguments) {
 		ILauncherDelegate delegate = 
 				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
 		if (delegate != null) {
 			// Create the terminal connector
 			Map<String, Object> properties = new HashMap<String, Object>();
 			properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
-			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fEncoding);
+			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
 
 			// It would be better to call the backend service to get this information
 			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
@@ -130,9 +144,9 @@ public class GdbCliConsolePage extends Page {
 			} catch (CoreException e) {
 			}
 			ITerminalConnector connector = delegate.createTerminalConnector(properties);
-			fViewControl.setConnector(connector);
-			if (fViewControl instanceof ITerminalControl) {
-				((ITerminalControl)fViewControl).setConnectOnEnterIfClosed(false);
+			fTerminalControl.setConnector(connector);
+			if (fTerminalControl instanceof ITerminalControl) {
+				((ITerminalControl)fTerminalControl).setConnectOnEnterIfClosed(false);
 			}
 
 			// Must use syncExec because the logic within must complete before the rest
@@ -140,14 +154,46 @@ public class GdbCliConsolePage extends Page {
 			fMainComposite.getDisplay().syncExec(new Runnable() {
 				@Override
 				public void run() {
-					if (fViewControl != null && !fViewControl.isDisposed()) {
-						fViewControl.clearTerminal();
-						fViewControl.connectTerminal();
+					if (fTerminalControl != null && !fTerminalControl.isDisposed()) {
+						fTerminalControl.clearTerminal();
+						fTerminalControl.connectTerminal();
 					}
 				}
 			}); 
 		}
 	}
+
+    @ConfinedToDsfExecutor("fsession.getExecutor()")
+    private void startGdbProcess() {
+		if (fSession == null) {
+			return;
+		}
+
+		try {
+			fSession.getExecutor().submit(new DsfRunnable() {
+	        	@Override
+	        	public void run() {
+	            	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
+	            	IMIBackend miBackend = tracker.getService(IMIBackend.class);
+	            	tracker.dispose();
+
+	            	if (miBackend instanceof IGDBBackendWithConsole) {
+	            		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)miBackend;
+	            		
+	            		// Start the GDB process as specified by the backend service
+	            		String[] command = backend.getGdbLaunchCommand();
+	            		String gdbCommand = command[0];
+	            		String[] arguments = Arrays.copyOfRange(command, 1, command.length);
+            			startProcess(gdbCommand, StringUtil.join(arguments, " "));  //$NON-NLS-1$
+
+            			// Let the backend service know about the process that was started
+            			backend.setGdbProcess(getProcess());
+	            	}
+	        	}
+	        });
+		} catch (RejectedExecutionException e) {
+		}
+    }
 
 //	public TerminalState getTerminalState() {
 //		return tViewCtrl.getState();
