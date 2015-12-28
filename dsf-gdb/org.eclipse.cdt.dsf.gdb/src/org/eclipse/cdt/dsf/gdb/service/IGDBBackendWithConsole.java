@@ -28,4 +28,6 @@ public interface IGDBBackendWithConsole {
 	 * so that the Backend service can make use of it.
 	 */
 	void setGdbProcess(Process proc);
+	
+	Process getGdbProcess();
 }

@@ -184,6 +184,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 			fWaitingForGDBProcess.done(proc);
 		}
 	}
+	
+	@Override
+	public Process getGdbProcess() {
+		return fProcess;
+	}
 
 	@Override
 	public boolean shouldLaunchGdbCli() {

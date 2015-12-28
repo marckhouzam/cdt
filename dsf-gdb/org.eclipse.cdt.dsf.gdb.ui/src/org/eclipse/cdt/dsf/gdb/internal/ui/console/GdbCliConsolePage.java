@@ -7,6 +7,7 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import org.eclipse.cdt.dsf.gdb.service.IGDBBackendWithConsole;
 import org.eclipse.cdt.dsf.mi.service.IMIBackend;
 import org.eclipse.cdt.dsf.service.DsfServicesTracker;
 import org.eclipse.cdt.dsf.service.DsfSession;
+import org.eclipse.cdt.utils.pty.PTY;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.swt.SWT;
@@ -124,25 +126,11 @@ public class GdbCliConsolePage extends Page {
 		return null;
 	}
 	
-	private void startProcess(String processCommand, String arguments) {
+	
+	private void startProcess(Map<String, Object> properties) {
 		ILauncherDelegate delegate = 
 				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
 		if (delegate != null) {
-			// Create the terminal connector
-			Map<String, Object> properties = new HashMap<String, Object>();
-			properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
-			properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
-
-			// It would be better to call the backend service to get this information
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, processCommand);
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ARGS, arguments);
-			properties.put(ITerminalsConnectorConstants.PROP_DATA_NO_RECONNECT, Boolean.FALSE);
-			try {
-				String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
-				properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ENVIRONMENT, env);
-			} catch (CoreException e) {
-			}
 			ITerminalConnector connector = delegate.createTerminalConnector(properties);
 			fTerminalControl.setConnector(connector);
 			if (fTerminalControl instanceof ITerminalControl) {
@@ -159,8 +147,41 @@ public class GdbCliConsolePage extends Page {
 						fTerminalControl.connectTerminal();
 					}
 				}
-			}); 
+			});
 		}
+	}
+	
+	private Map<String, Object> createNewSettings(String processCommand, String arguments) {
+		// Create the terminal connector
+		Map<String, Object> properties = new HashMap<String, Object>();
+		properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
+		properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
+
+		// It would be better to call the backend service to get this information
+		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
+		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, processCommand);
+		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ARGS, arguments);
+		try {
+			String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
+			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ENVIRONMENT, env);
+		} catch (CoreException e) {
+		}
+		return properties;
+	}
+
+	private Map<String, Object> createSettingsForCopy(Process proc) {
+		// Create the terminal connector
+		Map<String, Object> properties = new HashMap<String, Object>();
+		properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
+		properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
+
+		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_OBJ, proc);
+		try {
+			properties.put(ITerminalsConnectorConstants.PROP_PTY_OBJ, new PTY());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return properties;
 	}
 
     @ConfinedToDsfExecutor("fsession.getExecutor()")
@@ -180,14 +201,18 @@ public class GdbCliConsolePage extends Page {
 	            	if (miBackend instanceof IGDBBackendWithConsole) {
 	            		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)miBackend;
 	            		
-	            		// Start the GDB process as specified by the backend service
-	            		String[] command = backend.getGdbLaunchCommand();
-	            		String gdbCommand = command[0];
-	            		String[] arguments = Arrays.copyOfRange(command, 1, command.length);
-            			startProcess(gdbCommand, StringUtil.join(arguments, " "));  //$NON-NLS-1$
+	            		if (backend.getGdbProcess() == null) {
+	            			// Start the GDB process as specified by the backend service
+	            			String[] command = backend.getGdbLaunchCommand();
+	            			String gdbCommand = command[0];
+	            			String[] arguments = Arrays.copyOfRange(command, 1, command.length);
+	            			startProcess(createNewSettings(gdbCommand, StringUtil.join(arguments, " ")));  //$NON-NLS-1$
 
-            			// Let the backend service know about the process that was started
-            			backend.setGdbProcess(getProcess());
+	            			// Let the backend service know about the process that was started
+	            			backend.setGdbProcess(getProcess());
+	            		} else {
+	            			startProcess(createSettingsForCopy(backend.getGdbProcess()));
+	            		}
 	            	}
 	        	}
 	        });

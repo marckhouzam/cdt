@@ -33,11 +33,6 @@ public class GdbCliConsole extends AbstractConsole {
 
         resetName();        
 	}
-	
-    @Override
-	protected void init() {
-        super.init();
-    }
     
 	@Override
 	protected void dispose() {
