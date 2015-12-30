@@ -11,23 +11,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedOutputStream;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.RejectedExecutionException;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.Query;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence;
 import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
-import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
 import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
-import org.eclipse.cdt.utils.CommandLineUtil;
 import org.eclipse.cdt.utils.pty.PTY;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.ILaunchConfiguration;
 
 /**
@@ -63,9 +55,9 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		final Sequence.Step[] initializeSteps = new Sequence.Step[] {
 				new CreatePty(InitializationShutdownStep.Direction.INITIALIZING),
 				// Register right away to allow the GdbConsole to find us
-				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
 				new MonitorJobStep(InitializationShutdownStep.Direction.INITIALIZING),
+				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
 		};
 
 		Sequence startupSequence = new Sequence(getExecutor(), requestMonitor) {
@@ -77,9 +69,9 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	@Override
     protected Step[] getShutdownSteps() {
         return new Sequence.Step[] {
+        	new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-            new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN),
         };
     }
@@ -117,38 +109,38 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		return "apropos word"; //$NON-NLS-1$
 	}
 
-	@Override
-	protected Process launchGDBProcess(String commandLine) throws CoreException {
-		if (fPty == null) {
-			return super.launchGDBProcess(commandLine);
-		}
-		Query<Process> waitForProcess = new Query<Process>() {
-			@Override
-            protected void execute(DataRequestMonitor<Process> rm) {
-				if (fProcess != null) {
-					rm.done(fProcess);
-				} else {
-					fWaitingForGDBProcess = rm;
-					// Don't call done now.  It will instead be called
-					// when the process is started by the GdbConsole
-					// class and set here with the callback
-					// IGDBBackendWithConsole.gdbProcessStarted()
-				}
-            }
-		};
-		Exception e = null;
-		try {
-			getExecutor().execute(waitForProcess);
-			return waitForProcess.get();
-		} catch (RejectedExecutionException excep) {
-			e = excep;
-		} catch (InterruptedException excep) {
-			e = excep;
-		} catch (ExecutionException excep) {
-			e = excep;
-		}
-		throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, e.getMessage(), e));
-	}
+//	@Override
+//	protected Process launchGDBProcess(String commandLine) throws CoreException {
+//		if (fPty == null) {
+//			return super.launchGDBProcess(commandLine);
+//		}
+//		Query<Process> waitForProcess = new Query<Process>() {
+//			@Override
+//            protected void execute(DataRequestMonitor<Process> rm) {
+//				if (fProcess != null) {
+//					rm.done(fProcess);
+//				} else {
+//					fWaitingForGDBProcess = rm;
+//					// Don't call done now.  It will instead be called
+//					// when the process is started by the GdbConsole
+//					// class and set here with the callback
+//					// IGDBBackendWithConsole.gdbProcessStarted()
+//				}
+//            }
+//		};
+//		Exception e = null;
+//		try {
+//			getExecutor().execute(waitForProcess);
+//			return waitForProcess.get();
+//		} catch (RejectedExecutionException excep) {
+//			e = excep;
+//		} catch (InterruptedException excep) {
+//			e = excep;
+//		} catch (ExecutionException excep) {
+//			e = excep;
+//		}
+//		throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, e.getMessage(), e));
+//	}
 	
 	protected class CreatePty extends InitializationShutdownStep {
 		CreatePty(Direction direction) { super(direction); }
@@ -178,45 +170,30 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	}
 
 	@Override
-	public void setGdbProcess(Process proc) {
-		fProcess = proc;
-		if (fWaitingForGDBProcess != null) {
-			fWaitingForGDBProcess.done(proc);
-		}
-	}
-	
-	@Override
-	public Process getGdbProcess() {
-		return fProcess;
-	}
-
-	@Override
 	public boolean shouldLaunchGdbCli() {
 		return true;
 	}
 	
 	@Override
-	public String[] getGdbLaunchCommand() {
-		String cmd = getGDBPath().toOSString() +
+	protected String[] getGDBCommandLineArray() {
+		return new String[] { getGDBPath().toOSString(),
 				// Don't read the gdbinit file here. It is read explicitly in
 				// the FinalLaunchSequence to make it easier to customize.
-				" --nx" + //$NON-NLS-1$
+				"--nx", //$NON-NLS-1$
 				// Start with -q option to avoid extra output which may trigger pagination
 				// We must do this because the version is output before we can turn off pagination.
 				// This is important because if pagination is triggered at this time, we won't
 				// be able to send the command to start the MI channel.
-				" -q" + //$NON-NLS-1$
+				"-q", //$NON-NLS-1$
 				// Now turn off pagination then print the version for the user to get the familiar
 				// startup printout, then turn pagination on again for the rest of the session
-				" -ex\\ \\\"set pagination off\\\"" + //$NON-NLS-1$
-				" -ex\\ \\\"show version\\\"" + //$NON-NLS-1$
-				" -ex\\ \\\"set pagination on\\\"" + //$NON-NLS-1$
+				"-ex", "set pagination off", //$NON-NLS-1$ //$NON-NLS-2$
+				"-ex", "show version",  //$NON-NLS-1$ //$NON-NLS-2$
+				"-ex", "set pagination on",  //$NON-NLS-1$ //$NON-NLS-2$
 				// Finally, trigger the new console to be used.
-				" -ex\\ \\\"new-console " + fPty.getSlaveName() + "\\\""; //$NON-NLS-1$ //$NON-NLS-2$
+				"-ex", "new-console " + fPty.getSlaveName()}; //$NON-NLS-1$ //$NON-NLS-2$
 
 		// Parse to properly handle spaces and such things (bug 458499)
-		return CommandLineUtil.argumentsToArray(cmd);
+//		return CommandLineUtil.argumentsToArray(cmd);
 	}
-
-
 }

@@ -17,17 +17,5 @@ public interface IGDBBackendWithConsole {
 	 */
 	boolean shouldLaunchGdbCli();
 	
-	/**
-	 * Returns the command with arguments that should
-	 * be used to start GDB in the console.
-	 */
-	String[] getGdbLaunchCommand();
-	
-	/**
-	 * Sets the GDB process that was started by the console
-	 * so that the Backend service can make use of it.
-	 */
-	void setGdbProcess(Process proc);
-	
-	Process getGdbProcess();
+	Process getProcess();
 }

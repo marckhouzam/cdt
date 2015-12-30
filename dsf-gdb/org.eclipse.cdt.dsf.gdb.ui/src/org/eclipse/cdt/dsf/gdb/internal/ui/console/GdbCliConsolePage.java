@@ -7,25 +7,19 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
-import org.eclipse.cdt.core.parser.util.StringUtil;
 import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
 import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
 import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
-import org.eclipse.cdt.dsf.gdb.launching.LaunchUtils;
 import org.eclipse.cdt.dsf.gdb.service.IGDBBackendWithConsole;
 import org.eclipse.cdt.dsf.mi.service.IMIBackend;
 import org.eclipse.cdt.dsf.service.DsfServicesTracker;
 import org.eclipse.cdt.dsf.service.DsfSession;
-import org.eclipse.cdt.utils.pty.PTY;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FillLayout;
@@ -38,7 +32,8 @@ import org.eclipse.tm.internal.terminal.control.TerminalViewControlFactory;
 import org.eclipse.tm.internal.terminal.provisional.api.ITerminalConnector;
 import org.eclipse.tm.internal.terminal.provisional.api.ITerminalControl;
 import org.eclipse.tm.internal.terminal.provisional.api.TerminalState;
-import org.eclipse.tm.terminal.connector.process.ProcessConnector;
+import org.eclipse.tm.terminal.view.core.interfaces.ITerminalServiceOutputStreamMonitorListener;
+import org.eclipse.tm.terminal.view.core.interfaces.constants.ILineSeparatorConstants;
 import org.eclipse.tm.terminal.view.core.interfaces.constants.ITerminalsConnectorConstants;
 import org.eclipse.tm.terminal.view.ui.interfaces.ILauncherDelegate;
 import org.eclipse.tm.terminal.view.ui.launcher.LauncherDelegateManager;
@@ -88,7 +83,7 @@ public class GdbCliConsolePage extends Page {
 		        },
 				fMainComposite,
 				new ITerminalConnector[] {}, 
-				false);
+				true);
 		
 		try {
 			fTerminalControl.setEncoding("UTF-8"); //$NON-NLS-1$
@@ -112,24 +107,11 @@ public class GdbCliConsolePage extends Page {
 		if (fTerminalControl.getState() != TerminalState.CLOSED) {
 			fTerminalControl.disconnectTerminal();
 		}
-	}
-
-	/**
-	 * Returns the process that was started within this console page.
-	 * Returns null if no process can be found.
-	 */
-	private Process getProcess() {
-		ProcessConnector proc = fTerminalControl.getTerminalConnector().getAdapter(ProcessConnector.class);
-		if (proc != null) {
-			return proc.getProcess();
-		}
-		return null;
-	}
-	
+	}	
 	
 	private void startProcess(Map<String, Object> properties) {
 		ILauncherDelegate delegate = 
-				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.local.launcher.local", false); //$NON-NLS-1$
+				LauncherDelegateManager.getInstance().getLauncherDelegate("org.eclipse.tm.terminal.connector.streams.launcher.streams", false); //$NON-NLS-1$
 		if (delegate != null) {
 			ITerminalConnector connector = delegate.createTerminalConnector(properties);
 			fTerminalControl.setConnector(connector);
@@ -151,39 +133,22 @@ public class GdbCliConsolePage extends Page {
 		}
 	}
 	
-	private Map<String, Object> createNewSettings(String processCommand, String arguments) {
+	private Map<String, Object> createNewSettings(Process process) {
+		
 		// Create the terminal connector
 		Map<String, Object> properties = new HashMap<String, Object>();
-		properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
-		properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
-
-		// It would be better to call the backend service to get this information
-		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_WORKING_DIR, "/tmp"); //$NON-NLS-1$
-		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_PATH, processCommand);
-		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ARGS, arguments);
-		try {
-			String[] env = LaunchUtils.getLaunchEnvironment(fGdbConsole.getLaunch().getLaunchConfiguration());
-			properties.put(ITerminalsConnectorConstants.PROP_PROCESS_ENVIRONMENT, env);
-		} catch (CoreException e) {
-		}
+		properties.put(ITerminalsConnectorConstants.PROP_LOCAL_ECHO, Boolean.TRUE);
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDIN, process.getOutputStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDOUT, process.getInputStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDERR, process.getErrorStream());
+		properties.put(ITerminalsConnectorConstants.PROP_LINE_SEPARATOR, ILineSeparatorConstants.LINE_SEPARATOR_LF);
+		properties.put(ITerminalsConnectorConstants.PROP_STDOUT_LISTENERS, 
+				new ITerminalServiceOutputStreamMonitorListener[0]);
+		properties.put(ITerminalsConnectorConstants.PROP_STDERR_LISTENERS, 
+				new ITerminalServiceOutputStreamMonitorListener[0]);
 		return properties;
 	}
-
-	private Map<String, Object> createSettingsForCopy(Process proc) {
-		// Create the terminal connector
-		Map<String, Object> properties = new HashMap<String, Object>();
-		properties.put(ITerminalsConnectorConstants.PROP_TITLE, "My Local Terminal");
-		properties.put(ITerminalsConnectorConstants.PROP_ENCODING, fTerminalControl.getEncoding());
-
-		properties.put(ITerminalsConnectorConstants.PROP_PROCESS_OBJ, proc);
-		try {
-			properties.put(ITerminalsConnectorConstants.PROP_PTY_OBJ, new PTY());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return properties;
-	}
-
+	
     @ConfinedToDsfExecutor("fsession.getExecutor()")
     private void startGdbProcess() {
 		if (fSession == null) {
@@ -201,17 +166,8 @@ public class GdbCliConsolePage extends Page {
 	            	if (miBackend instanceof IGDBBackendWithConsole) {
 	            		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)miBackend;
 	            		
-	            		if (backend.getGdbProcess() == null) {
-	            			// Start the GDB process as specified by the backend service
-	            			String[] command = backend.getGdbLaunchCommand();
-	            			String gdbCommand = command[0];
-	            			String[] arguments = Arrays.copyOfRange(command, 1, command.length);
-	            			startProcess(createNewSettings(gdbCommand, StringUtil.join(arguments, " ")));  //$NON-NLS-1$
-
-	            			// Let the backend service know about the process that was started
-	            			backend.setGdbProcess(getProcess());
-	            		} else {
-	            			startProcess(createSettingsForCopy(backend.getGdbProcess()));
+	            		if (backend.getProcess() != null) {
+	            			startProcess(createNewSettings(backend.getProcess()));
 	            		}
 	            	}
 	        	}
