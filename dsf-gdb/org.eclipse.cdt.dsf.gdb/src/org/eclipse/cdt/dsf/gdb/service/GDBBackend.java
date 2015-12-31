@@ -15,9 +15,11 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -47,6 +49,8 @@ import org.eclipse.cdt.dsf.service.AbstractDsfService;
 import org.eclipse.cdt.dsf.service.DsfServiceEventHandler;
 import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.cdt.utils.CommandLineUtil;
+import org.eclipse.cdt.utils.pty.PTY;
+import org.eclipse.cdt.utils.pty.PTY.Mode;
 import org.eclipse.cdt.utils.spawner.ProcessFactory;
 import org.eclipse.cdt.utils.spawner.Spawner;
 import org.eclipse.core.resources.IContainer;
@@ -424,7 +428,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	protected Process launchGDBProcess(String[] commandLine) throws CoreException {
         Process proc = null;
 		try {
-			proc = ProcessFactory.getFactory().exec(commandLine, LaunchUtils.getLaunchEnvironment(fLaunchConfiguration));
+			PTY pty = new PTY(Mode.CONSOLE);
+
+			proc = ProcessFactory.getFactory().exec(
+					commandLine, 
+					LaunchUtils.getLaunchEnvironment(fLaunchConfiguration),
+					new File(getGDBWorkingDirectory().toOSString()),
+					pty);
 		} catch (IOException e) {
             String message = "Error while launching command: " + StringUtil.join(commandLine, " "); //$NON-NLS-1$ //$NON-NLS-2$
             throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, message, e));
@@ -619,52 +629,52 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                         return Status.OK_STATUS;
                     }
                     
-//                    BufferedReader inputReader = null;
-//                    BufferedReader errorReader = null;
-//                    boolean success = false;
-//                    try {
-//                    	// Read initial GDB prompt
-//                        inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
-//                        String line;
-//                        while ((line = inputReader.readLine()) != null) {
-//                            line = line.trim();
-//                            if (line.indexOf(getOutputToWaitFor()) != -1) {
-//                            	success = true;
-//                                break;
-//                            }
-//                        }
-//                        
-//                        // Failed to read initial prompt, check for error
-//                        if (!success) {
-//                        	errorReader = new BufferedReader(new InputStreamReader(getProcess().getErrorStream()));
-//                        	String errorInfo = errorReader.readLine();
-//                        	if (errorInfo == null) {
-//                        		errorInfo = "GDB prompt not read"; //$NON-NLS-1$
-//                        	}
-//    	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, errorInfo, null));
-//                        }
-//                    } catch (IOException e) {
-//                    	success = false;
-//	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Error reading GDB output", e)); //$NON-NLS-1$
-//                    }
-//
-//                    // In the case of failure, close the MI streams so
-//                    // they are not leaked.
-//                    if (!success)
-//                    {
-//	                	if (inputReader != null) {
-//	                		try {
-//								inputReader.close();
-//							} catch (IOException e) {
-//							}
-//	                	}
-//	                	if (errorReader != null) {
-//	                		try {
-//								errorReader.close();
-//							} catch (IOException e) {
-//							}
-//	                	}
-//                    }
+                    BufferedReader inputReader = null;
+                    BufferedReader errorReader = null;
+                    boolean success = false;
+                    try {
+                    	// Read initial GDB prompt
+                        inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
+                        String line;
+                        while ((line = inputReader.readLine()) != null) {
+                            line = line.trim();
+                            if (line.indexOf(getOutputToWaitFor()) != -1) {
+                            	success = true;
+                                break;
+                            }
+                        }
+                        
+                        // Failed to read initial prompt, check for error
+                        if (!success) {
+                        	errorReader = new BufferedReader(new InputStreamReader(getProcess().getErrorStream()));
+                        	String errorInfo = errorReader.readLine();
+                        	if (errorInfo == null) {
+                        		errorInfo = "GDB prompt not read"; //$NON-NLS-1$
+                        	}
+    	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, errorInfo, null));
+                        }
+                    } catch (IOException e) {
+                    	success = false;
+	                    gdbLaunchRequestMonitor.setStatus(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, "Error reading GDB output", e)); //$NON-NLS-1$
+                    }
+
+                    // In the case of failure, close the MI streams so
+                    // they are not leaked.
+                    if (!success)
+                    {
+	                	if (inputReader != null) {
+	                		try {
+								inputReader.close();
+							} catch (IOException e) {
+							}
+	                	}
+	                	if (errorReader != null) {
+	                		try {
+								errorReader.close();
+							} catch (IOException e) {
+							}
+	                	}
+                    }
                     
                     gdbLaunchRequestMonitor.done();
                     return Status.OK_STATUS;

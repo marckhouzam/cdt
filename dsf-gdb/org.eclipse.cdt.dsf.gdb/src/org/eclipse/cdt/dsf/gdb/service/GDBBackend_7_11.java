@@ -19,6 +19,7 @@ import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
 import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
+import org.eclipse.cdt.utils.CommandLineUtil;
 import org.eclipse.cdt.utils.pty.PTY;
 import org.eclipse.debug.core.ILaunchConfiguration;
 
@@ -92,7 +93,6 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		return fPty.getInputStream();
 	};
 
-	/** @since 4.1 */
 	@Override
 	public InputStream getMIErrorStream() {
 		if (fPty == null) {
@@ -176,24 +176,28 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	
 	@Override
 	protected String[] getGDBCommandLineArray() {
-		return new String[] { getGDBPath().toOSString(),
+		String cmd =  getGDBPath().toOSString()
 				// Don't read the gdbinit file here. It is read explicitly in
 				// the FinalLaunchSequence to make it easier to customize.
-				"--nx", //$NON-NLS-1$
+				+ " --nx" //$NON-NLS-1$
 				// Start with -q option to avoid extra output which may trigger pagination
 				// We must do this because the version is output before we can turn off pagination.
 				// This is important because if pagination is triggered at this time, we won't
 				// be able to send the command to start the MI channel.
-				"-q", //$NON-NLS-1$
+				+ " -q" //$NON-NLS-1$
 				// Now turn off pagination then print the version for the user to get the familiar
 				// startup printout, then turn pagination on again for the rest of the session
-				"-ex", "set pagination off", //$NON-NLS-1$ //$NON-NLS-2$
-				"-ex", "show version",  //$NON-NLS-1$ //$NON-NLS-2$
-				"-ex", "set pagination on",  //$NON-NLS-1$ //$NON-NLS-2$
+				+ " -ex" //$NON-NLS-1$
+				+ " set\\ pagination\\ off" //$NON-NLS-1$ 
+				+ " -ex" //$NON-NLS-1$
+				+ " show\\ version"  //$NON-NLS-1$ 
+				+ " -ex" //$NON-NLS-1$
+				+ " set\\ pagination\\ on"  //$NON-NLS-1$ 
 				// Finally, trigger the new console to be used.
-				"-ex", "new-console " + fPty.getSlaveName()}; //$NON-NLS-1$ //$NON-NLS-2$
+				+ " -ex" //$NON-NLS-1$
+				+ " new-console\\ " + fPty.getSlaveName(); //$NON-NLS-1$ 
 
 		// Parse to properly handle spaces and such things (bug 458499)
-//		return CommandLineUtil.argumentsToArray(cmd);
+		return CommandLineUtil.argumentsToArray(cmd);
 	}
 }
