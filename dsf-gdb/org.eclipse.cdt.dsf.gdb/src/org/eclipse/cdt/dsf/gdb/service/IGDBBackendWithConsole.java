@@ -7,6 +7,9 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 /**
   * @since 5.0
  */
@@ -18,4 +21,11 @@ public interface IGDBBackendWithConsole {
 	boolean shouldLaunchGdbCli();
 	
 	Process getProcess();
+	
+    public InputStream getCLIInputStream();
+
+    public OutputStream getCLIOutputStream();
+    
+    public InputStream getCLIErrorStream();
+
 }

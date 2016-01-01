@@ -133,14 +133,14 @@ public class GdbCliConsolePage extends Page {
 		}
 	}
 	
-	private Map<String, Object> createNewSettings(Process process) {
+	private Map<String, Object> createNewSettings(IGDBBackendWithConsole backend) {
 		
 		// Create the terminal connector
 		Map<String, Object> properties = new HashMap<String, Object>();
 		properties.put(ITerminalsConnectorConstants.PROP_LOCAL_ECHO, Boolean.TRUE);
-		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDIN, process.getOutputStream());
-		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDOUT, process.getInputStream());
-		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDERR, process.getErrorStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDIN, backend.getCLIOutputStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDOUT, backend.getCLIInputStream());
+//		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDERR, backend.getCLIErrorStream());
 		properties.put(ITerminalsConnectorConstants.PROP_LINE_SEPARATOR, ILineSeparatorConstants.LINE_SEPARATOR_LF);
 		properties.put(ITerminalsConnectorConstants.PROP_STDOUT_LISTENERS, 
 				new ITerminalServiceOutputStreamMonitorListener[0]);
@@ -167,7 +167,7 @@ public class GdbCliConsolePage extends Page {
 	            		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)miBackend;
 	            		
 	            		if (backend.getProcess() != null) {
-	            			startProcess(createNewSettings(backend.getProcess()));
+	            			startProcess(createNewSettings(backend));
 	            		}
 	            	}
 	        	}

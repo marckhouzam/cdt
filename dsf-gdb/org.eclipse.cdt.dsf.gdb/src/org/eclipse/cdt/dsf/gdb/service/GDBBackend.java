@@ -85,6 +85,7 @@ import org.osgi.framework.BundleContext;
 public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBackend2 {
 	
 	private final ILaunchConfiguration fLaunchConfiguration;
+	private PTY fCLIPty;
 	
 	/*
 	 * Parameters for launching GDB.
@@ -184,6 +185,9 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             };
     }        
 
+    protected PTY getCLIPty() {
+    	return fCLIPty;
+    }
     
 	/** @since 4.0 */
     protected IPath getGDBPath() {
@@ -428,13 +432,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	protected Process launchGDBProcess(String[] commandLine) throws CoreException {
         Process proc = null;
 		try {
-			PTY pty = new PTY(Mode.CONSOLE);
+			fCLIPty = new PTY(Mode.CONSOLE);
 
 			proc = ProcessFactory.getFactory().exec(
 					commandLine, 
 					LaunchUtils.getLaunchEnvironment(fLaunchConfiguration),
 					new File(getGDBWorkingDirectory().toOSString()),
-					pty);
+					fCLIPty);
 		} catch (IOException e) {
             String message = "Error while launching command: " + StringUtil.join(commandLine, " "); //$NON-NLS-1$ //$NON-NLS-2$
             throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, message, e));
@@ -634,7 +638,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     boolean success = false;
                     try {
                     	// Read initial GDB prompt
-                        inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
+                    	inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
                         String line;
                         while ((line = inputReader.readLine()) != null) {
                             line = line.trim();
