@@ -7,6 +7,8 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.internal.ui.console;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +47,7 @@ public class GdbCliConsolePage extends Page {
 	private final GdbCliConsole fGdbConsole;
 	private DsfSession fSession;
 	private Composite fMainComposite;
+	private Process fProcess;
 	
 	/** The control for the terminal widget embedded in the console */
 	private ITerminalViewControl fTerminalControl;
@@ -130,17 +133,21 @@ public class GdbCliConsolePage extends Page {
 					}
 				}
 			});
+			if (outThread == null) {
+				outThread = new OutThread();
+				outThread.start();
+			}
 		}
 	}
 	
-	private Map<String, Object> createNewSettings(IGDBBackendWithConsole backend) {
+	private Map<String, Object> createNewSettings() {
 		
 		// Create the terminal connector
 		Map<String, Object> properties = new HashMap<String, Object>();
-		properties.put(ITerminalsConnectorConstants.PROP_LOCAL_ECHO, Boolean.TRUE);
-		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDIN, backend.getCLIOutputStream());
-		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDOUT, backend.getCLIInputStream());
-//		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDERR, backend.getCLIErrorStream());
+		properties.put(ITerminalsConnectorConstants.PROP_LOCAL_ECHO, Boolean.FALSE);
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDIN, fProcess.getOutputStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDOUT, fProcess.getInputStream());
+		properties.put(ITerminalsConnectorConstants.PROP_STREAMS_STDERR, fProcess.getErrorStream());
 		properties.put(ITerminalsConnectorConstants.PROP_LINE_SEPARATOR, ILineSeparatorConstants.LINE_SEPARATOR_LF);
 		properties.put(ITerminalsConnectorConstants.PROP_STDOUT_LISTENERS, 
 				new ITerminalServiceOutputStreamMonitorListener[0]);
@@ -167,7 +174,8 @@ public class GdbCliConsolePage extends Page {
 	            		IGDBBackendWithConsole backend = (IGDBBackendWithConsole)miBackend;
 	            		
 	            		if (backend.getProcess() != null) {
-	            			startProcess(createNewSettings(backend));
+	            			fProcess = backend.getProcess();
+	            			startProcess(createNewSettings());
 	            		}
 	            	}
 	        	}
@@ -194,4 +202,35 @@ public class GdbCliConsolePage extends Page {
 //	public boolean getScrollLock() {
 //		return tViewCtrl.isScrollLock();
 //	}
+    
+	private class OutThread extends Thread {
+		public OutThread() {
+			super("Terminal Output"); //$NON-NLS-1$
+		}
+
+		@Override
+		public void run() {
+			try {
+				byte[] buff = new byte[1024];
+				if (fProcess != null) {
+					InputStream in = fProcess.getInputStream();
+					for (int n = in.read(buff); n >= 0; n = in.read(buff)) {
+						if (fTerminalControl instanceof ITerminalControl) {
+							ITerminalControl control = (ITerminalControl)fTerminalControl;
+							if (control != null) {
+								control.getRemoteToTerminalOutputStream().write(buff, 0, n);
+							}
+						}
+					}
+				}
+//				synchronized (TerminalConsoleConnector.this) {
+					outThread = null;
+//				}
+			} catch (IOException e) {
+			}
+		}
+	}
+
+	private OutThread outThread;
+
 }

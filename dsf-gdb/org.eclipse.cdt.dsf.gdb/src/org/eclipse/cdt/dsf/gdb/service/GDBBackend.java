@@ -432,7 +432,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	protected Process launchGDBProcess(String[] commandLine) throws CoreException {
         Process proc = null;
 		try {
-			fCLIPty = new PTY(Mode.CONSOLE);
+			fCLIPty = new PTY(Mode.TERMINAL);
 
 			proc = ProcessFactory.getFactory().exec(
 					commandLine, 
