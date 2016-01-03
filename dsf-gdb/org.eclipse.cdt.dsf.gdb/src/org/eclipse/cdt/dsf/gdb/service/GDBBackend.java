@@ -36,7 +36,6 @@ import org.eclipse.cdt.dsf.concurrent.IDsfStatusConstants;
 import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.Sequence;
-import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
 import org.eclipse.cdt.dsf.gdb.IGDBLaunchConfigurationConstants;
 import org.eclipse.cdt.dsf.gdb.IGdbDebugPreferenceConstants;
 import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
@@ -85,7 +84,6 @@ import org.osgi.framework.BundleContext;
 public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBackend2 {
 	
 	private final ILaunchConfiguration fLaunchConfiguration;
-	private PTY fCLIPty;
 	
 	/*
 	 * Parameters for launching GDB.
@@ -147,8 +145,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
         });
     }
 
-    /** @since 5.0 */
-    protected void doInitialize(final RequestMonitor requestMonitor) {
+    private void doInitialize(final RequestMonitor requestMonitor) {
 
         final Sequence.Step[] initializeSteps = new Sequence.Step[] {
                 new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
@@ -164,30 +161,24 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 
     @Override
     public void shutdown(final RequestMonitor requestMonitor) {
-    	getExecutor().execute( 
-            	new Sequence(getExecutor(), 
-            				 new RequestMonitor(getExecutor(), requestMonitor) {
-            					@Override
-            					protected void handleCompleted() {
-            						GDBBackend.super.shutdown(requestMonitor);
-            					}
-            				}) {
-                @Override public Step[] getSteps() { return getShutdownSteps(); }
-            });
-    }
-    
-    /** @since 5.0 */
-    protected Step[] getShutdownSteps() {
-        return new Sequence.Step[] {
+        final Sequence.Step[] shutdownSteps = new Sequence.Step[] {
                 new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
                 new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
                 new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             };
+        Sequence shutdownSequence = 
+        	new Sequence(getExecutor(), 
+        				 new RequestMonitor(getExecutor(), requestMonitor) {
+        					@Override
+        					protected void handleCompleted() {
+        						GDBBackend.super.shutdown(requestMonitor);
+        					}
+        				}) {
+            @Override public Step[] getSteps() { return shutdownSteps; }
+        };
+        getExecutor().execute(shutdownSequence);
     }        
 
-    protected PTY getCLIPty() {
-    	return fCLIPty;
-    }
     
 	/** @since 4.0 */
     protected IPath getGDBPath() {
@@ -432,13 +423,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	protected Process launchGDBProcess(String[] commandLine) throws CoreException {
         Process proc = null;
 		try {
-			fCLIPty = new PTY(Mode.TERMINAL);
-
+			// TODO handle case where PTY not supported
 			proc = ProcessFactory.getFactory().exec(
 					commandLine, 
 					LaunchUtils.getLaunchEnvironment(fLaunchConfiguration),
 					new File(getGDBWorkingDirectory().toOSString()),
-					fCLIPty);
+					new PTY(Mode.TERMINAL));
 		} catch (IOException e) {
             String message = "Error while launching command: " + StringUtil.join(commandLine, " "); //$NON-NLS-1$ //$NON-NLS-2$
             throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, message, e));
@@ -575,11 +565,6 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
         return GdbPlugin.getBundleContext();
 	}
 
-	/** @since 5.0 */
-	protected String getOutputToWaitFor() {
-		return "(gdb)"; //$NON-NLS-1$
-	}
-	
 	protected class GDBProcessStep extends InitializationShutdownStep {
         GDBProcessStep(Direction direction) { super(direction); }
         
@@ -638,11 +623,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     boolean success = false;
                     try {
                     	// Read initial GDB prompt
-                    	inputReader = new BufferedReader(new InputStreamReader(getProcess().getInputStream()));
+                        inputReader = new BufferedReader(new InputStreamReader(getMIInputStream()));
                         String line;
                         while ((line = inputReader.readLine()) != null) {
                             line = line.trim();
-                            if (line.indexOf(getOutputToWaitFor()) != -1) {
+                            if (line.indexOf("(gdb)") != -1) { //$NON-NLS-1$
                             	success = true;
                                 break;
                             }
@@ -650,7 +635,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                         
                         // Failed to read initial prompt, check for error
                         if (!success) {
-                        	errorReader = new BufferedReader(new InputStreamReader(getProcess().getErrorStream()));
+                        	errorReader = new BufferedReader(new InputStreamReader(getMIErrorStream()));
                         	String errorInfo = errorReader.readLine();
                         	if (errorInfo == null) {
                         		errorInfo = "GDB prompt not read"; //$NON-NLS-1$
@@ -801,7 +786,9 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             register(
                 new String[]{ IMIBackend.class.getName(), 
                 		      IMIBackend2.class.getName(),
-                              IGDBBackend.class.getName() }, 
+                              IGDBBackend.class.getName(),
+                              //TODO remove
+                              IGDBBackendWithConsole.class.getName()}, 
                 new Hashtable<String,String>());
             
             getSession().addServiceEventListener(GDBBackend.this, null);

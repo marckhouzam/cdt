@@ -7,8 +7,7 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.service;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 
 /**
   * @since 5.0
@@ -18,14 +17,7 @@ public interface IGDBBackendWithConsole {
 	/**
 	 * 
 	 */
-	boolean shouldLaunchGdbCli();
+	void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm);
 	
 	Process getProcess();
-	
-    public InputStream getCLIInputStream();
-
-    public OutputStream getCLIOutputStream();
-    
-    public InputStream getCLIErrorStream();
-
 }

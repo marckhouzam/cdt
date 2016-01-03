@@ -11,12 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedOutputStream;
+import java.util.Hashtable;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
+import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.Sequence;
-import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
-import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.cdt.utils.CommandLineUtil;
@@ -38,45 +37,45 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 
 	private PTY fPty;
 	private InputStream fErrorStream;
-    private Process fProcess;
-	private DataRequestMonitor<Process> fWaitingForGDBProcess;
 
 	public GDBBackend_7_11(DsfSession session, ILaunchConfiguration lc) {
 		super(session, lc);
 	}
 
-	@Override
-	public void initialize(final RequestMonitor requestMonitor) {
-		super.initialize(requestMonitor);
-	}
-
-	@Override
-	protected void doInitialize(final RequestMonitor requestMonitor) {
-
-		final Sequence.Step[] initializeSteps = new Sequence.Step[] {
-				new CreatePty(InitializationShutdownStep.Direction.INITIALIZING),
-				// Register right away to allow the GdbConsole to find us
-				new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
-				new MonitorJobStep(InitializationShutdownStep.Direction.INITIALIZING),
-				new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
-		};
-
-		Sequence startupSequence = new Sequence(getExecutor(), requestMonitor) {
-			@Override public Step[] getSteps() { return initializeSteps; }
-		};
-		getExecutor().execute(startupSequence);
-	}
-
-	@Override
-    protected Step[] getShutdownSteps() {
-        return new Sequence.Step[] {
-        	new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-            new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-            new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-            new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN),
-        };
+    @Override
+    public void initialize(final RequestMonitor rm) {
+    	createPty(new ImmediateRequestMonitor(rm) {
+            @Override
+            protected void handleSuccess() {
+            	GDBBackend_7_11.super.initialize(new ImmediateRequestMonitor(rm) {
+            		@Override
+            		protected void handleSuccess() {
+            	        register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
+            	                 new Hashtable<String,String>());
+            	    	rm.done();
+            		}
+            	});
+            }
+    	});
     }
 
+	protected void createPty(RequestMonitor rm) {
+		try {
+			fPty = new PTY();
+			fPty.validateSlaveName();
+
+			PipedOutputStream errorStreamPiped = new PipedOutputStream();
+			try {
+				// Using a LargePipedInputStream see https://bugs.eclipse.org/bugs/show_bug.cgi?id=223154
+				fErrorStream = new LargePipedInputStream(errorStreamPiped);
+			} catch (IOException e) {
+			}
+		} catch (IOException e) {
+			fPty = null;
+		}
+		rm.done();
+	}
+	
 	@Override
 	public OutputStream getMIOutputStream() {
 		if (fPty == null) {
@@ -102,76 +101,8 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	};
 
 	@Override
-	protected String getOutputToWaitFor() {
-		if (fPty == null) {
-			return super.getOutputToWaitFor();
-		}
-		return "apropos word"; //$NON-NLS-1$
-	}
-
-//	@Override
-//	protected Process launchGDBProcess(String commandLine) throws CoreException {
-//		if (fPty == null) {
-//			return super.launchGDBProcess(commandLine);
-//		}
-//		Query<Process> waitForProcess = new Query<Process>() {
-//			@Override
-//            protected void execute(DataRequestMonitor<Process> rm) {
-//				if (fProcess != null) {
-//					rm.done(fProcess);
-//				} else {
-//					fWaitingForGDBProcess = rm;
-//					// Don't call done now.  It will instead be called
-//					// when the process is started by the GdbConsole
-//					// class and set here with the callback
-//					// IGDBBackendWithConsole.gdbProcessStarted()
-//				}
-//            }
-//		};
-//		Exception e = null;
-//		try {
-//			getExecutor().execute(waitForProcess);
-//			return waitForProcess.get();
-//		} catch (RejectedExecutionException excep) {
-//			e = excep;
-//		} catch (InterruptedException excep) {
-//			e = excep;
-//		} catch (ExecutionException excep) {
-//			e = excep;
-//		}
-//		throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, e.getMessage(), e));
-//	}
-	
-	protected class CreatePty extends InitializationShutdownStep {
-		CreatePty(Direction direction) { super(direction); }
-		@Override
-		public void initialize(final RequestMonitor requestMonitor) {
-			try {
-				fPty = new PTY();
-				fPty.validateSlaveName();
-
-				PipedOutputStream errorStreamPiped = new PipedOutputStream();
-				try {
-					// Using a LargePipedInputStream see https://bugs.eclipse.org/bugs/show_bug.cgi?id=223154
-					fErrorStream = new LargePipedInputStream(errorStreamPiped);
-				} catch (IOException e) {
-				}
-			} catch (IOException e) {
-				fPty = null;
-			}
-			requestMonitor.done();
-		}
-
-		@Override
-		protected void shutdown(RequestMonitor requestMonitor) {
-			fPty = null;
-			requestMonitor.done();
-		}
-	}
-
-	@Override
-	public boolean shouldLaunchGdbCli() {
-		return true;
+	public void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm) {
+		rm.done(true);
 	}
 	
 	@Override
@@ -193,26 +124,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				+ " show\\ version"  //$NON-NLS-1$ 
 				+ " -ex" //$NON-NLS-1$
 				+ " set\\ pagination\\ on"  //$NON-NLS-1$ 
-				// Finally, trigger the new console to be used.
+				// Finally, trigger the new console towards our PTY.
 				+ " -ex" //$NON-NLS-1$
 				+ " new-console\\ " + fPty.getSlaveName(); //$NON-NLS-1$ 
 
 		// Parse to properly handle spaces and such things (bug 458499)
 		return CommandLineUtil.argumentsToArray(cmd);
-	}
-
-	@Override
-	public InputStream getCLIInputStream() {
-		return getCLIPty().getInputStream();
-	}
-
-	@Override
-	public OutputStream getCLIOutputStream() {
-		return getCLIPty().getOutputStream();
-	}
-
-	@Override
-	public InputStream getCLIErrorStream() {
-		return null;
 	}
 }

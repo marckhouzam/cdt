@@ -14,6 +14,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 import org.eclipse.cdt.dsf.concurrent.ConfinedToDsfExecutor;
 import org.eclipse.cdt.dsf.concurrent.DsfRunnable;
+import org.eclipse.cdt.dsf.concurrent.ImmediateDataRequestMonitor;
 import org.eclipse.cdt.dsf.gdb.IGdbDebugPreferenceConstants;
 import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
 import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
@@ -38,16 +39,20 @@ import org.eclipse.ui.console.IConsoleManager;
  * A console manager for GDB sessions which adds and removes: 
 
  * 1- gdb traces consoles
+ *    There is a single such console per debug session.
+ *    This console shows the MI communication between CDT and GDB.
  *    These consoles can be enabled or disabled using a preference.
  *    They support a configurable size through the use of water marks 
  *    They apply to {@link ITracedLaunch}
  * 2- gdb cli consoles
+ *    There is a single such console per debug session.
+ *    This console interacts directly with the GDB process using
+ *    the standard GDB CLI interface.
  *    These consoles cannot be enabled/disabled by the user.
  *    However, they are only supported by GDB >= 7.11;
- *    to handled this, the console itself will use the DSF Backend
- *    service to establish if it should be used or not.
+ *    to handle this limitation, the console manager will use the DSF Backend
+ *    service to establish if it should start a gdb cli console or not.
  *    These consoles apply to {@link GdbLaunch} running GDB >= 7.11
- *    
  */
 public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeListener {
 
@@ -208,39 +213,31 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 	}
 
 	protected void removeTracingConsole(ILaunch launch) {
-		if (launch instanceof ITracedLaunch) {
-			TracingConsole console = getTracingConsole(launch);
-			if (console != null) {
-				ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
-			}
+		TracingConsole console = getTracingConsole(launch);
+		if (console != null) {
+			ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
 		}
 	}
 
 	protected void removeCliConsole(ILaunch launch) {
-		if (launch instanceof GdbLaunch) {
-			GdbCliConsole console = getCliConsole(launch);
-			if (console != null) {
-				ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
-			}
+		GdbCliConsole console = getCliConsole(launch);
+		if (console != null) {
+			ConsolePlugin.getDefault().getConsoleManager().removeConsoles(new IConsole[]{console});
 		}
 	}
 
 	protected void renameTracingConsole(ILaunch launch) {
-		if (launch instanceof ITracedLaunch) {
-			TracingConsole console = getTracingConsole(launch);
-			if (console != null) {
-				console.resetName();
-			}		
-		}
+		TracingConsole console = getTracingConsole(launch);
+		if (console != null) {
+			console.resetName();
+		}		
 	}
 
 	protected void renameCliConsole(ILaunch launch) {
-		if (launch instanceof GdbLaunch) {
-			GdbCliConsole console = getCliConsole(launch);
-			if (console != null) {
-				console.resetName();
-			}		
-		}
+		GdbCliConsole console = getCliConsole(launch);
+		if (console != null) {
+			console.resetName();
+		}		
 	}
 	
 	/**
@@ -248,25 +245,25 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 	 * restarting the GDB process after it has terminated.
 	 */
 	protected void stopCliConsole(ILaunch launch) {
-		if (launch instanceof GdbLaunch) {
-			GdbCliConsole console = getCliConsole(launch);
-			if (console != null) {
-				console.stop();
-			}		
-		}
+		GdbCliConsole console = getCliConsole(launch);
+		if (console != null) {
+			console.stop();
+		}		
 	}
 
 	private TracingConsole getTracingConsole(ILaunch launch) {
-		ConsolePlugin plugin = ConsolePlugin.getDefault();
-		if (plugin != null) {
-			// I've seen the plugin be null when running headless JUnit tests
-			IConsoleManager manager = plugin.getConsoleManager(); 
-			IConsole[] consoles = manager.getConsoles();
-			for (IConsole console : consoles) {
-				if (console instanceof TracingConsole) {
-					TracingConsole tracingConsole = (TracingConsole)console;
-					if (tracingConsole.getLaunch().equals(launch)) {
-						return tracingConsole;
+		if (launch instanceof ITracedLaunch) {
+			ConsolePlugin plugin = ConsolePlugin.getDefault();
+			if (plugin != null) {
+				// I've seen the plugin be null when running headless JUnit tests
+				IConsoleManager manager = plugin.getConsoleManager(); 
+				IConsole[] consoles = manager.getConsoles();
+				for (IConsole console : consoles) {
+					if (console instanceof TracingConsole) {
+						TracingConsole tracingConsole = (TracingConsole)console;
+						if (tracingConsole.getLaunch().equals(launch)) {
+							return tracingConsole;
+						}
 					}
 				}
 			}
@@ -275,16 +272,18 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 	}
 	
 	private GdbCliConsole getCliConsole(ILaunch launch) {
-		ConsolePlugin plugin = ConsolePlugin.getDefault();
-		if (plugin != null) {
-			// This plugin can be null when running headless JUnit tests
-			IConsoleManager manager = plugin.getConsoleManager(); 
-			IConsole[] consoles = manager.getConsoles();
-			for (IConsole console : consoles) {
-				if (console instanceof GdbCliConsole) {
-					GdbCliConsole gdbConsole = (GdbCliConsole)console;
-					if (gdbConsole.getLaunch().equals(launch)) {
-						return gdbConsole;
+		if (launch instanceof GdbLaunch) {
+			ConsolePlugin plugin = ConsolePlugin.getDefault();
+			if (plugin != null) {
+				// This plugin can be null when running headless JUnit tests
+				IConsoleManager manager = plugin.getConsoleManager(); 
+				IConsole[] consoles = manager.getConsoles();
+				for (IConsole console : consoles) {
+					if (console instanceof GdbCliConsole) {
+						GdbCliConsole gdbConsole = (GdbCliConsole)console;
+						if (gdbConsole.getLaunch().equals(launch)) {
+							return gdbConsole;
+						}
 					}
 				}
 			}
@@ -323,25 +322,6 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		}
 	}
 	
-	public class GdbCliEventListener {
-		private String fSessionId;
-		private GdbCliConsoleCreator fCreator;
-		
-		public GdbCliEventListener(GdbCliConsoleCreator creator, String sessionId) {
-			fCreator = creator;
-			fSessionId = sessionId;
-		}
-		
-		@DsfServiceEventHandler
-	    public void eventDispatched(BackendStateChangedEvent event) {
-	        if (event.getState() == IMIBackend.State.STARTED &&
-	        		event.getSessionId().equals(fSessionId)) 
-	        {
-	        	fCreator.eventReceived();
-	        }
-	    }
-	}
-	
 	/**
 	 * Class that determines if a GdbCliConsole should be created for
 	 * this particular Gdblaunch.  It figures this out by asking the
@@ -358,7 +338,6 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		}
 		
 		public void init() {
-			fListener = new GdbCliEventListener(this, fSession.getId());
 			try {
 				fSession.getExecutor().submit(new DsfRunnable() {
 		        	@Override
@@ -366,7 +345,7 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		        		// Look for backend service right away.  It probably 
 		        		// won't be available yet but we must make sure
 		            	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
-		            	IMIBackend backend = tracker.getService(IMIBackend.class);
+		            	IGDBBackendWithConsole backend = tracker.getService(IGDBBackendWithConsole.class);
 		            	tracker.dispose();
 		            	
 		            	if (backend != null) {
@@ -374,6 +353,7 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		            		verifyAndCreateCliConsole(backend);
 		            	} else {
 		            		// Backend service not available yet, let's wait for it to start.
+		            		fListener = new GdbCliEventListener(GdbCliConsoleCreator.this, fSession.getId());
 		            		fSession.addServiceEventListener(fListener, null);
 		            	}
 		        	}
@@ -382,33 +362,63 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 			}
 		}
 		
-		private void verifyAndCreateCliConsole(IMIBackend backend) {
-    		if (backend instanceof IGDBBackendWithConsole) {
-    			if (((IGDBBackendWithConsole)backend).shouldLaunchGdbCli()) {
-    				// Create an new Cli console .
-    				GdbCliConsole console = new GdbCliConsole(fLaunch, ConsoleMessages.ConsoleMessages_gdb_console_name);
-    				//	console.setWaterMarks(fMinNumCharacters, fMaxNumCharacters);
+		@ConfinedToDsfExecutor("fSession.getExecutor()")
+		private void verifyAndCreateCliConsole(IGDBBackendWithConsole backend) {
+    		if (backend != null) {
+    			backend.shouldLaunchGdbCli(new ImmediateDataRequestMonitor<Boolean>() {
+    				@Override
+    				protected void handleSuccess() {
+    					if (getData()) {
+    						// Create an new Cli console .
+    						GdbCliConsole console = new GdbCliConsole(fLaunch, ConsoleMessages.ConsoleMessages_gdb_console_name);
 
-    				// Register this console
-    				ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
+    						// Register this console
+    						ConsolePlugin.getDefault().getConsoleManager().addConsoles(new IConsole[]{console});
 
-    				// Very important to make sure the console view is open or else things will not work
-    				ConsolePlugin.getDefault().getConsoleManager().showConsoleView(console);
-    			}
+    						// Very important to make sure the console view is open or else things will not work
+    						ConsolePlugin.getDefault().getConsoleManager().showConsoleView(console);
+    					}
+    					// The service said not to start a GdbCliConsole
+    				}
+    			});
     		}
-    		// In all other cases, we are not supposed to start a GdbCliConsole
+    		// Not the right type of backend service, don't start a GdbCliConsole
 		}
 		
 		@ConfinedToDsfExecutor("fSession.getExecutor()")
-		public void eventReceived() {
+		private void backendStarted() {
         	// No longer need to receive events.
 			fSession.removeServiceEventListener(fListener);
 			
         	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
-        	IMIBackend backend = tracker.getService(IMIBackend.class);
+        	IGDBBackendWithConsole backend = tracker.getService(IGDBBackendWithConsole.class);
         	tracker.dispose();
 
     		verifyAndCreateCliConsole(backend);
 		}
+	}
+	
+	/**
+	 * Class used to listen for Backend started event which indicate
+	 * the DSF-GDB backend service can be used.
+	 * This class must be public to receive the event.
+	 */
+	public class GdbCliEventListener {
+		private String fSessionId;
+		private GdbCliConsoleCreator fCreator;
+		
+		public GdbCliEventListener(GdbCliConsoleCreator creator, String sessionId) {
+			fCreator = creator;
+			fSessionId = sessionId;
+		}
+		
+		@DsfServiceEventHandler
+	    public void eventDispatched(BackendStateChangedEvent event) {
+	        if (event.getState() == IMIBackend.State.STARTED &&
+	        		event.getSessionId().equals(fSessionId)) 
+	        {
+	        	fCreator.backendStarted();
+	        }
+	    }
 	}
 }
