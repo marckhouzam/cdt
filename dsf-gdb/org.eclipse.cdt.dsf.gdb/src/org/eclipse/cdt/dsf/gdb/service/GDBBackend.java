@@ -146,37 +146,41 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     }
 
     private void doInitialize(final RequestMonitor requestMonitor) {
-
+        getExecutor().execute(getStartupSequence(requestMonitor));
+    }
+    
+	protected Sequence getStartupSequence(final RequestMonitor requestMonitor) {
         final Sequence.Step[] initializeSteps = new Sequence.Step[] {
                 new GDBProcessStep(InitializationShutdownStep.Direction.INITIALIZING),
                 new MonitorJobStep(InitializationShutdownStep.Direction.INITIALIZING),
                 new RegisterStep(InitializationShutdownStep.Direction.INITIALIZING),
             };
 
-        Sequence startupSequence = new Sequence(getExecutor(), requestMonitor) {
+        return new Sequence(getExecutor(), requestMonitor) {
             @Override public Step[] getSteps() { return initializeSteps; }
         };
-        getExecutor().execute(startupSequence);
     }
 
     @Override
     public void shutdown(final RequestMonitor requestMonitor) {
+        getExecutor().execute(getShutdownSequence(new RequestMonitor(getExecutor(), requestMonitor) {
+        	@Override
+        	protected void handleCompleted() {
+				GDBBackend.super.shutdown(requestMonitor);
+        	}
+        }));
+    }
+    
+    protected Sequence getShutdownSequence(RequestMonitor requestMonitor) {
         final Sequence.Step[] shutdownSteps = new Sequence.Step[] {
                 new RegisterStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
                 new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
                 new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             };
-        Sequence shutdownSequence = 
-        	new Sequence(getExecutor(), 
-        				 new RequestMonitor(getExecutor(), requestMonitor) {
-        					@Override
-        					protected void handleCompleted() {
-        						GDBBackend.super.shutdown(requestMonitor);
-        					}
-        				}) {
+        
+        return new Sequence(getExecutor(), requestMonitor) {
             @Override public Step[] getSteps() { return shutdownSteps; }
         };
-        getExecutor().execute(shutdownSequence);
     }        
 
     
@@ -782,13 +786,21 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     protected class RegisterStep extends InitializationShutdownStep {
         RegisterStep(Direction direction) { super(direction); }
         @Override
-        public void initialize(final RequestMonitor requestMonitor) {
-            register(
+        public void initialize(RequestMonitor requestMonitor) {
+        	doRegisterStep(requestMonitor);
+        }
+
+        @Override
+        protected void shutdown(RequestMonitor requestMonitor) {
+        	undoRegisterStep(requestMonitor);
+        }
+    }
+
+    protected void doRegisterStep(RequestMonitor requestMonitor) {
+        register(
                 new String[]{ IMIBackend.class.getName(), 
                 		      IMIBackend2.class.getName(),
-                              IGDBBackend.class.getName(),
-                              //TODO remove
-                              IGDBBackendWithConsole.class.getName()}, 
+                              IGDBBackend.class.getName()}, 
                 new Hashtable<String,String>());
             
             getSession().addServiceEventListener(GDBBackend.this, null);
@@ -809,14 +821,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             requestMonitor.done();
         }
 
-        @Override
-        protected void shutdown(RequestMonitor requestMonitor) {
-            unregister();
-            getSession().removeServiceEventListener(GDBBackend.this);
-            requestMonitor.done();
-        }
+    protected void undoRegisterStep(RequestMonitor requestMonitor) {
+        unregister();
+        getSession().removeServiceEventListener(GDBBackend.this);
+        requestMonitor.done();
     }
-
+    
     /**
      * Monitors a system process, waiting for it to terminate, and
      * then notifies the associated runtime process.

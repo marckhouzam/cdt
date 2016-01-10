@@ -14,8 +14,10 @@ import java.io.PipedOutputStream;
 import java.util.Hashtable;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.ImmediateRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
+import org.eclipse.cdt.dsf.concurrent.Sequence;
+import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
+import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.cdt.utils.CommandLineUtil;
@@ -42,24 +44,50 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		super(session, lc);
 	}
 
-    @Override
-    public void initialize(final RequestMonitor rm) {
-    	createPty(new ImmediateRequestMonitor(rm) {
-            @Override
-            protected void handleSuccess() {
-            	GDBBackend_7_11.super.initialize(new ImmediateRequestMonitor(rm) {
-            		@Override
-            		protected void handleSuccess() {
-            	        register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
-            	                 new Hashtable<String,String>());
-            	    	rm.done();
-            		}
-            	});
-            }
-    	});
+	@Override
+	protected Sequence getStartupSequence(final RequestMonitor requestMonitor) {
+		Sequence originalSequence = super.getStartupSequence(requestMonitor);
+		Step[] originalSteps = originalSequence.getSteps();
+
+		// Add the creation of the pty at the beginning of the startup sequence
+        final Sequence.Step[] newSteps = new Sequence.Step[originalSteps.length+1];
+        System.arraycopy(originalSteps, 0, newSteps, 1, originalSteps.length);
+        newSteps[0] = new CreatePty(InitializationShutdownStep.Direction.INITIALIZING);
+
+        return new Sequence(getExecutor(), requestMonitor) {
+            @Override public Step[] getSteps() { return newSteps; }
+        };
     }
 
-	protected void createPty(RequestMonitor rm) {
+    @Override
+	protected Sequence getShutdownSequence(RequestMonitor requestMonitor) {
+		Sequence originalSequence = super.getShutdownSequence(requestMonitor);
+		Step[] originalSteps = originalSequence.getSteps();
+
+		// Add the shutdown of the pty at the end of the shutdown sequence
+        final Sequence.Step[] newSteps = new Sequence.Step[originalSteps.length+1];
+        System.arraycopy(originalSteps, 0, newSteps, 0, originalSteps.length);
+        newSteps[newSteps.length-1] = new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN);
+
+        return new Sequence(getExecutor(), requestMonitor) {
+            @Override public Step[] getSteps() { return newSteps; }
+        };
+    }
+
+	private class CreatePty extends InitializationShutdownStep {
+		CreatePty(Direction direction) { super(direction); }
+		@Override
+		public void initialize(final RequestMonitor requestMonitor) {
+			doCreatePtyStep(requestMonitor);
+		}
+
+		@Override
+		protected void shutdown(RequestMonitor requestMonitor) {
+			undoCreatePtyStep(requestMonitor);
+		}
+	}
+
+	protected void doCreatePtyStep(RequestMonitor rm) {
 		try {
 			fPty = new PTY();
 			fPty.validateSlaveName();
@@ -74,6 +102,18 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 			fPty = null;
 		}
 		rm.done();
+	}
+	
+	protected void undoCreatePtyStep(RequestMonitor rm) {
+		fPty = null;
+		rm.done();
+	}
+	
+	@Override
+	protected void doRegisterStep(RequestMonitor requestMonitor) {
+		super.doRegisterStep(requestMonitor);
+		register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
+				 new Hashtable<String,String>());
 	}
 	
 	@Override
