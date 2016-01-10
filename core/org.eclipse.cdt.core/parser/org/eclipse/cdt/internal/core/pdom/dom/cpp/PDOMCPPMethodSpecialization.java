@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2012 QNX Software Systems and others.
+ * Copyright (c) 2007, 2013 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -51,8 +51,9 @@ class PDOMCPPMethodSpecialization extends PDOMCPPFunctionSpecialization
 	 */
 	private static final int CV_OFFSET = PDOMCPPAnnotation.MAX_EXTRA_OFFSET + 1;
 	
-	public PDOMCPPMethodSpecialization(PDOMCPPLinkage linkage, PDOMNode parent, ICPPMethod method, PDOMBinding specialized) throws CoreException {
-		super(linkage, parent, method, specialized);		
+	public PDOMCPPMethodSpecialization(PDOMCPPLinkage linkage, PDOMNode parent, ICPPMethod method, 
+			PDOMBinding specialized, IASTNode point) throws CoreException {
+		super(linkage, parent, method, specialized, point);		
 		Database db = getDB();
 
 		try {

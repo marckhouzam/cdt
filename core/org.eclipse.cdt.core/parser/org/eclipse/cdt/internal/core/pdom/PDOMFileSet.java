@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2009 Wind River Systems, Inc. and others.
+ * Copyright (c) 2008, 2015 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,7 +20,7 @@ import org.eclipse.cdt.internal.core.pdom.dom.PDOMFile;
 import org.eclipse.core.runtime.CoreException;
 
 public class PDOMFileSet implements IIndexFragmentFileSet {
-	private final HashSet<Long> fFileIDs= new HashSet<Long>();
+	private final HashSet<Long> fFileIDs= new HashSet<>();
 	
 	@Override
 	public void add(IIndexFragmentFile fragFile) {

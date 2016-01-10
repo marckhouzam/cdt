@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2013 Wind River Systems, Inc. and others.
+ * Copyright (c) 2009, 2015 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -150,7 +150,7 @@ public class TemplateArgumentDeduction {
 						if (inner != null) {
 							final EvalInitList eval = ((InitializerListType) arg).getEvaluation();
 							for (ICPPEvaluation clause : eval.getClauses()) {
-								if (!deduceFromFunctionArg(inner, clause.getTypeOrFunctionSet(point), 
+								if (!deduceFromFunctionArg(inner, clause.getType(point), 
 										clause.getValueCategory(point), deduct, point))
 									return false;
 							}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2012 QNX Software Systems and others.
+ * Copyright (c) 2006, 2015 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -114,7 +114,7 @@ class PDOMCLinkage extends PDOMLinkage implements IIndexCBindingConstants {
 		if (shouldUpdate(pdomBinding, fromName)) {
 			IBinding fromBinding = fromName.getBinding();
 
-			pdomBinding.update(this, fromBinding);
+			pdomBinding.update(this, fromBinding, null);
 
 			// Update the tags based on the tags from the new binding.  This cannot be done in
 			// PDOMBinding.update, because not all subclasses (e.g., PDOMCFunction) call

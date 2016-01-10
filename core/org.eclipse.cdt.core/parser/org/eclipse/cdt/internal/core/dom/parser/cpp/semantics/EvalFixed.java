@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012 Wind River Systems, Inc. and others.
+ * Copyright (c) 2012, 2015 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -45,6 +45,14 @@ public class EvalFixed extends CPPEvaluation {
 	private boolean fCheckedIsValueDependent;
 
 	public EvalFixed(IType type, ValueCategory cat, IValue value) {
+		// Avoid nesting EvalFixed's as nesting causes the signature to be different.
+		if (value.getEvaluation() instanceof EvalFixed) {
+			EvalFixed inner = (EvalFixed) value.getEvaluation();
+			type = inner.fType;
+			cat = inner.fValueCategory;
+			value = inner.fValue;
+		}
+		
 		if (type instanceof CPPBasicType) {
 			Long num = value.numericalValue();
 			if (num != null) {
@@ -57,7 +65,7 @@ public class EvalFixed extends CPPEvaluation {
 		fValueCategory= cat;
 		fValue= value;
 	}
-
+	
 	public IType getType() {
 		return fType;
 	}
@@ -104,7 +112,7 @@ public class EvalFixed extends CPPEvaluation {
 	}
 
 	@Override
-	public IType getTypeOrFunctionSet(IASTNode point) {
+	public IType getType(IASTNode point) {
 		return fType;
 	}
 

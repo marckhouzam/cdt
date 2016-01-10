@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2014 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,13 +20,11 @@ import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTIfStatement;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
-import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * If statement in C++
  */
-public class CPPASTIfStatement extends ASTAttributeOwner implements ICPPASTIfStatement, IASTAmbiguityParent {
+public class CPPASTIfStatement extends CPPASTAttributeOwner implements ICPPASTIfStatement {
     private IASTExpression condition;
     private IASTStatement thenClause;
     private IASTStatement elseClause;
@@ -177,17 +175,21 @@ public class CPPASTIfStatement extends ASTAttributeOwner implements ICPPASTIfSta
 			other.setParent(child.getParent());
 			other.setPropertyInParent(child.getPropertyInParent());
 			thenClause = (IASTStatement) other;
+			return;
 		} else if (elseClause == child) {
 			other.setParent(child.getParent());
 			other.setPropertyInParent(child.getPropertyInParent());
 			elseClause = (IASTStatement) other;
+			return;
 		} else if (condition == child || condDecl == child) {
 			if (other instanceof IASTExpression) {
 				setConditionExpression((IASTExpression) other);
 			} else if (other instanceof IASTDeclaration) {
 				setConditionDeclaration((IASTDeclaration) other);
 			}
+			return;
 		}
+		super.replace(child, other);
 	}
 
     @Override

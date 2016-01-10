@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2012 Institute for Software, HSR Hochschule fuer Technik
+ * Copyright (c) 2008, 2014 Institute for Software, HSR Hochschule fuer Technik
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -46,8 +46,8 @@ import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.PreferenceConstants;
 
 import org.eclipse.cdt.internal.core.dom.parser.ASTInternal;
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVariableReadWriteFlags;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 import org.eclipse.cdt.internal.core.dom.rewrite.util.ASTNodes;
 import org.eclipse.cdt.internal.core.pdom.dom.PDOMName;
 import org.eclipse.cdt.internal.corext.refactoring.code.flow.FlowContext;
@@ -206,7 +206,7 @@ public class NodeContainer {
 
 		IASTNode firstNode = nodes.get(0);
 		IASTFunctionDefinition enclosingFunction =
-				CPPVisitor.findAncestorWithType(firstNode, IASTFunctionDefinition.class);
+				ASTQueries.findAncestorWithType(firstNode, IASTFunctionDefinition.class);
 		FlowContext flowContext= new FlowContext(enclosingFunction);
 		flowContext.setConsiderAccessMode(true);
 		flowContext.setComputeMode(FlowContext.ARGUMENTS);

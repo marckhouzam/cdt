@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 QNX Software Systems and others.
+ * Copyright (c) 2000, 2014 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,7 +40,7 @@ import org.eclipse.cdt.core.parser.IScannerInfo;
 import org.eclipse.cdt.core.parser.IncludeFileContentProvider;
 import org.eclipse.cdt.core.parser.ParserUtil;
 import org.eclipse.cdt.core.parser.ScannerInfo;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.util.TextUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
@@ -237,11 +237,11 @@ public class CCodeFormatter extends CodeFormatter {
 			node = nodeSelector.findFirstContainedNode(pos, end - pos);
 			if (node != null) {
 				IASTNode containedNode = node;
-				node = CPPVisitor.findAncestorWithType(containedNode, IASTStatement.class);
+				node = ASTQueries.findAncestorWithType(containedNode, IASTStatement.class);
 				if (node == null)
-					node = CPPVisitor.findAncestorWithType(containedNode, IASTDeclaration.class);
+					node = ASTQueries.findAncestorWithType(containedNode, IASTDeclaration.class);
 				if (node == null)
-					node = CPPVisitor.findAncestorWithType(containedNode, IASTPreprocessorMacroExpansion.class);
+					node = ASTQueries.findAncestorWithType(containedNode, IASTPreprocessorMacroExpansion.class);
 			}
 			if (node == null)
 				break;

@@ -13,7 +13,6 @@
  *     Sergey Prigogin (Google)
  *     Thomas Corbat (IFS)
  *     Anders Dahlberg (Ericsson) - bug 84144
- *     Justin You (Synopsys) - bug 84144
  *     Alexander Nyßen (itemis AG) - bug 475908
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.dom.parser;
@@ -27,6 +26,7 @@ import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTASMDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTAlignmentSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTAttribute;
+import org.eclipse.cdt.core.dom.ast.IASTAttributeList;
 import org.eclipse.cdt.core.dom.ast.IASTAttributeOwner;
 import org.eclipse.cdt.core.dom.ast.IASTAttributeSpecifier;
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
@@ -2384,11 +2384,11 @@ public abstract class AbstractGNUSourceCodeParser implements ISourceCodeParser {
      * @throws BacktrackException
      * @throws EndOfFileException
      */
-    protected IASTAttributeSpecifier __attribute__() throws BacktrackException, EndOfFileException {
+    protected IASTAttributeList __attribute__() throws BacktrackException, EndOfFileException {
     	if (LT(1) != IGCCToken.t__attribute__)
     		return null;
 
-    	IASTAttributeSpecifier result = nodeFactory.newGCCAttributeSpecifier();
+    	IASTAttributeList result = nodeFactory.newGCCAttributeList();
     	consume();
     	if (LT(1) == IToken.tLPAREN) {
     		consume();
@@ -2567,6 +2567,7 @@ public abstract class AbstractGNUSourceCodeParser implements ISourceCodeParser {
 			skipBrackets(IToken.tLPAREN, IToken.tRPAREN, IToken.tSEMI);
 			switch (LTcatchEOF(1)) {
 			case IToken.tAMPERASSIGN:
+			case IToken.tAND:
 			case IToken.tARROW:
 			case IToken.tARROWSTAR:
 			case IToken.tASSIGN:

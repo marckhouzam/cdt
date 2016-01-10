@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2013 Institute for Software, HSR Hochschule fuer Technik
+ * Copyright (c) 2008, 2014 Institute for Software, HSR Hochschule fuer Technik
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -88,6 +88,7 @@ import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.PreferenceConstants;
 
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.c.CASTBinaryExpression;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTBinaryExpression;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTCompoundStatement;
@@ -103,7 +104,6 @@ import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTQualifiedName;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTReturnStatement;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTSimpleDeclaration;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTTemplateDeclaration;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.SemanticUtil;
 import org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor;
 
@@ -387,7 +387,7 @@ public class ExtractFunctionRefactoring extends CRefactoring {
 	private void createMethodDefinition(final IASTName methodName, MethodContext context,
 			IASTNode firstExtractedNode, ModificationCollector collector) {
 		IASTFunctionDefinition functionToExtractFrom =
-				CPPVisitor.findAncestorWithType(firstExtractedNode, IASTFunctionDefinition.class);
+				ASTQueries.findAncestorWithType(firstExtractedNode, IASTFunctionDefinition.class);
 		if (functionToExtractFrom != null) {
 			String title;
 			if (context.getType() == MethodContext.ContextType.METHOD) {
@@ -778,7 +778,7 @@ public class ExtractFunctionRefactoring extends CRefactoring {
 			IASTFunctionCallExpression callExpression, IASTName retname) {
 		if (info.getReturnVariable().equals(info.getMandatoryReturnVariable())) {
 			IASTSimpleDeclaration orgDecl =
-					CPPVisitor.findAncestorWithType(info.getReturnVariable().getDeclarationName(),
+					ASTQueries.findAncestorWithType(info.getReturnVariable().getDeclarationName(),
 							IASTSimpleDeclaration.class);
 			IASTSimpleDeclaration decl = new CPPASTSimpleDeclaration();
 

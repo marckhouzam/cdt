@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2006 IBM Corporation and others.
+ * Copyright (c) 2000, 2010 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,10 +15,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-/**
- * @version 	1.0
- * @author
- */
+
 public abstract class StructuredViewerPart extends SharedPartWithButtons {
 	private StructuredViewer viewer;
 	private Point minSize = null;
@@ -35,9 +32,6 @@ public abstract class StructuredViewerPart extends SharedPartWithButtons {
 		return viewer.getControl();
 	}
 
-	/*
-	 * @see SharedPartWithButtons#createMainControl(Composite, int, FormWidgetFactory)
-	 */
 	@Override
 	protected void createMainControl(Composite parent, int style, int span) {
 		viewer = createStructuredViewer(parent, style);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2012 Mentor Graphics Corporation and others.
+ * Copyright (c) 2010, 2014 Mentor Graphics Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -82,7 +82,12 @@ public class RemoteGdbLaunchDelegate extends GdbLaunchDelegate {
 					.getAttribute(
 							IRemoteConnectionConfigurationConstants.ATTR_GDBSERVER_COMMAND,
 							IRemoteConnectionConfigurationConstants.ATTR_GDBSERVER_COMMAND_DEFAULT);
-			String commandArguments = ":" + gdbserverPortNumber + " " //$NON-NLS-1$ //$NON-NLS-2$
+			String gdbserverOptions = config
+					.getAttribute(
+							IRemoteConnectionConfigurationConstants.ATTR_GDBSERVER_OPTIONS,
+							IRemoteConnectionConfigurationConstants.ATTR_GDBSERVER_OPTIONS_DEFAULT);
+			String commandArguments = gdbserverOptions + " " //$NON-NLS-1$
+					+ ":" + gdbserverPortNumber + " " //$NON-NLS-1$ //$NON-NLS-2$
 					+ RSEHelper.spaceEscapify(remoteExePath);
 			String arguments = getProgramArguments(config);
 			String prelaunchCmd = config

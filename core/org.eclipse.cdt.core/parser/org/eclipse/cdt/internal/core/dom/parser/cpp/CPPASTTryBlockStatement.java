@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2014 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,13 +18,11 @@ import org.eclipse.cdt.core.dom.ast.IASTStatement;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTCatchHandler;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTryBlockStatement;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
-import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * @author jcamelon
  */
-public class CPPASTTryBlockStatement extends ASTAttributeOwner implements ICPPASTTryBlockStatement, IASTAmbiguityParent {
+public class CPPASTTryBlockStatement extends CPPASTAttributeOwner implements ICPPASTTryBlockStatement {
     private ICPPASTCatchHandler[] catchHandlers;
     private int catchHandlersPos= -1;
     private IASTStatement tryBody;
@@ -119,6 +117,8 @@ public class CPPASTTryBlockStatement extends ASTAttributeOwner implements ICPPAS
             other.setPropertyInParent(child.getPropertyInParent());
             other.setParent(child.getParent());
             tryBody = (IASTStatement) other;
+            return;
         }
+        super.replace(child, other);
     }
 }

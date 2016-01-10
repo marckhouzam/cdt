@@ -7515,19 +7515,7 @@ public class AST2Tests extends AST2TestBase {
 	public void testExpressionLabelReference_84144() throws Exception {
 		parseAndCheckBindings(true);
 	}
-
-	//	void f()
-	//	{
-	//		unsigned long long labelPtr;
-	//		labelPtr = (unsigned long long) &&L;
-	//		goto *labelPtr;
-	//	L:
-	//		return;
-	//	}
-	public void testExpressionLabelReferenceCast_84144() throws Exception {
-		parseAndCheckBindings(true);
-	}
-
+	
 	//	int version = 0;
 	//	int NextVersion() {
 	//		return __atomic_add_fetch(&version, 1, 5);
@@ -7568,5 +7556,42 @@ public class AST2Tests extends AST2TestBase {
     //	_Alignas(struct S) int t;
     public void testAlignas_451082() throws Exception {
     	parseAndCheckBindings(getAboveComment(), C);
+    }
+    
+	//	void foo(int waldo) {
+	//		(waldo = 5) && waldo;
+	//	}
+    public void testTypeIdWithEqualsInitializer_484824() throws Exception {
+    	// Test that 'waldo = 5' is not parsed as a type-id, causing 
+    	// the entire expression to be parsed as a cast-expression.
+    	// See also bug 471174, which is about the broader problem of
+    	// binary && expressions with a parenthesized left operand
+    	// being incorrectly parsed as cast-expressions.
+    	parseAndCheckBindings(getAboveComment(), C);
+    }
+    
+    private void labelResolutionHelper(BindingAssertionHelper helper) {
+    	// Make sure existing labels are resolved correctly.
+    	ILabel label = helper.assertNonProblem("goto existent", "existent");
+    	assertEquals(1, helper.tu.getDeclarationsInAST(label).length);
+    	label = helper.assertNonProblem("&& existent", "existent");
+    	assertEquals(1, helper.tu.getDeclarationsInAST(label).length);
+    	
+    	// Make sure non-existent labels are not resolved.
+    	helper.assertProblem("goto nonexistent", "nonexistent");
+    	helper.assertProblem("&& nonexistent", "nonexistent");
+    }
+    
+	//	int main() {
+	//	existent:
+	//		int x;
+	//		goto existent;
+	//		goto nonexistent;
+	//		void* ref1 = && existent;
+	//		void* ref2 = && nonexistent;
+	//	}
+    public void testLabelResolution_484979() throws Exception {
+    	labelResolutionHelper(getAssertionHelper(C));
+    	labelResolutionHelper(getAssertionHelper(CPP));
     }
 }

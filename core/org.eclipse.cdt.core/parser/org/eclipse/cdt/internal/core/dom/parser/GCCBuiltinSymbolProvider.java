@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2013 IBM Corporation and others.
+ * Copyright (c) 2005, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -159,7 +159,6 @@ public class GCCBuiltinSymbolProvider implements IBuiltinBindingsProvider {
 			function(type, 		"__atomic_nadd_fetch", typePtr, type, "int");
 			function(type, 		"__atomic_fetch_add", typePtr, type, "int");
 			function(type, 		"__atomic_fetch_sub", typePtr, type, "int");
-			function(type, 		"__atomic_fetch_add", typePtr, type, "int");
 			function(type, 		"__atomic_fetch_and", typePtr, type, "int");
 			function(type, 		"__atomic_fetch_xor", typePtr, type, "int");
 			function(type, 		"__atomic_fetch_or", typePtr, type, "int");

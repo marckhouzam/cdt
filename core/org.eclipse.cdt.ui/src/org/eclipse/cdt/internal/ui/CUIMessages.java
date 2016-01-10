@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2001, 2009 IBM Corporation and others.
+ * Copyright (c) 2001, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -71,13 +71,6 @@ public final class CUIMessages extends NLS {
 	public static String FileTransferDragAdapter_refreshing;
 	public static String FileTransferDragAdapter_problem;
 	public static String FileTransferDragAdapter_problemTitle;
-	public static String NewCDTProjectWizard_mainPageDesc;
-	public static String NewCDTProjectWizard_mainPageTitle;
-	public static String NewCDTProjectWizard_refPageDesc;
-	public static String NewCDTProjectWizard_refPageTitle;
-	public static String NewCDTProjectWizard_templatePageDesc;
-	public static String NewCDTProjectWizard_templatePageTitle;
-	public static String NewCDTProjectWizard_windowTitle;
 	public static String CUIPlugin_initPrefs;
 
 	static {

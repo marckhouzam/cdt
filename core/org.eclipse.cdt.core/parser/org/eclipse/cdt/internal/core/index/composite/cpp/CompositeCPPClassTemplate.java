@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2011 Symbian Software Systems and others.
+ * Copyright (c) 2007, 2012 Symbian Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -49,11 +49,11 @@ public class CompositeCPPClassTemplate extends CompositeCPPClassType
 			}
 
 			return ArrayUtil.addAll(
-					ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY,
+					ICPPClassTemplatePartialSpecialization.EMPTY_ARRAY,
 					cf.getCompositeBindings(preresult));
 		} catch (CoreException ce) {
 			CCorePlugin.log(ce);
-			return ICPPClassTemplatePartialSpecialization.EMPTY_PARTIAL_SPECIALIZATION_ARRAY;
+			return ICPPClassTemplatePartialSpecialization.EMPTY_ARRAY;
 		}
 	}
 

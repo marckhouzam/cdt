@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2010 QNX Software Systems and others.
+ * Copyright (c) 2005, 2014 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,6 +14,7 @@ package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.IValue;
@@ -39,14 +40,16 @@ class PDOMCPPVariable extends PDOMCPPBinding implements ICPPVariable {
 	@SuppressWarnings("hiding")
 	protected static final int RECORD_SIZE = ANNOTATIONS + 1;
 
-	public PDOMCPPVariable(PDOMLinkage linkage, PDOMNode parent, IVariable variable) throws CoreException {
+	public PDOMCPPVariable(PDOMLinkage linkage, PDOMNode parent, IVariable variable, boolean setTypeAndValue) throws CoreException {
 		super(linkage, parent, variable.getNameCharArray());
 
 		// Find the type record
 		Database db = getDB();
-		setType(parent.getLinkage(), variable.getType());
 		db.putByte(record + ANNOTATIONS, encodeFlags(variable));
-		setValue(db, variable);
+		if (setTypeAndValue) {
+			setType(parent.getLinkage(), variable.getType());
+			setValue(db, variable);
+		}
 	}
 
 	private void setValue(Database db, IVariable variable) throws CoreException {
@@ -55,7 +58,7 @@ class PDOMCPPVariable extends PDOMCPPBinding implements ICPPVariable {
 	}
 
 	@Override
-	public void update(final PDOMLinkage linkage, IBinding newBinding) throws CoreException {
+	public void update(final PDOMLinkage linkage, IBinding newBinding, IASTNode point) throws CoreException {
 		if (newBinding instanceof IVariable) {
 			final Database db = getDB();
 			IVariable var= (IVariable) newBinding;
@@ -66,8 +69,7 @@ class PDOMCPPVariable extends PDOMCPPBinding implements ICPPVariable {
 		}
 	}
 
-
-	private void setType(final PDOMLinkage linkage, IType newType) throws CoreException {
+	protected void setType(final PDOMLinkage linkage, IType newType) throws CoreException {
 		linkage.storeType(record+TYPE_OFFSET, newType);
 	}
 

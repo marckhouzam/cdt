@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 QNX Software Systems and others.
+ * Copyright (c) 2015, 2016 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8,17 +8,24 @@
 package org.eclipse.cdt.arduino.ui.internal.project;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.cdt.arduino.core.internal.board.ArduinoLibrary;
 import org.eclipse.cdt.arduino.core.internal.board.ArduinoManager;
+import org.eclipse.cdt.arduino.core.internal.board.ArduinoPlatform;
 import org.eclipse.cdt.arduino.core.internal.board.LibraryIndex;
+import org.eclipse.cdt.arduino.core.internal.build.ArduinoBuildConfiguration;
 import org.eclipse.cdt.arduino.ui.internal.Activator;
 import org.eclipse.cdt.arduino.ui.internal.Messages;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.viewers.BaseLabelProvider;
+import org.eclipse.jface.viewers.CheckStateChangedEvent;
+import org.eclipse.jface.viewers.CheckboxTreeViewer;
+import org.eclipse.jface.viewers.ICheckStateListener;
+import org.eclipse.jface.viewers.ICheckStateProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.TreeViewer;
@@ -32,15 +39,16 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
-import org.eclipse.swt.widgets.TreeItem;
-import org.eclipse.ui.dialogs.ContainerCheckedTreeViewer;
 import org.eclipse.ui.dialogs.FilteredTree;
 import org.eclipse.ui.dialogs.PatternFilter;
 import org.eclipse.ui.dialogs.PropertyPage;
 
 public class LibrariesPropertyPage extends PropertyPage {
 
-	private static class ContentProvider implements ITreeContentProvider {
+	private static ArduinoManager manager = Activator.getService(ArduinoManager.class);
+	private Set<ArduinoLibrary> checkedLibs;
+
+	private class ContentProvider implements ITreeContentProvider {
 		private LibraryIndex index;
 
 		@Override
@@ -55,9 +63,9 @@ public class LibrariesPropertyPage extends PropertyPage {
 		@Override
 		public boolean hasChildren(Object element) {
 			if (element instanceof LibraryIndex) {
-				return !index.getCategories().isEmpty();
+				return true;
 			} else if (element instanceof String) { // category
-				return !index.getLibraries((String) element).isEmpty();
+				return true;
 			} else if (element instanceof ArduinoLibrary) {
 				return false;
 			} else {
@@ -68,8 +76,10 @@ public class LibrariesPropertyPage extends PropertyPage {
 		@Override
 		public Object getParent(Object element) {
 			if (element instanceof ArduinoLibrary) {
-				return ((ArduinoLibrary) element).getCategory();
-			} else if (element instanceof String) {
+				ArduinoLibrary lib = (ArduinoLibrary) element;
+				String category = lib.getCategory();
+				return category != null ? category : LibraryIndex.UNCATEGORIZED;
+			} else if (element instanceof String || element instanceof ArduinoPlatform) {
 				return index;
 			} else {
 				return null;
@@ -78,15 +88,46 @@ public class LibrariesPropertyPage extends PropertyPage {
 
 		@Override
 		public Object[] getElements(Object inputElement) {
-			return ((LibraryIndex) inputElement).getCategories().toArray(new String[0]);
+			Set<String> categories = new HashSet<>();
+			categories.addAll(((LibraryIndex) inputElement).getCategories());
+
+			try {
+				for (ArduinoLibrary lib : getPlatform().getLibraries()) {
+					String category = lib.getCategory();
+					categories.add(category != null ? category : LibraryIndex.UNCATEGORIZED);
+				}
+			} catch (CoreException e) {
+				Activator.log(e);
+			}
+
+			return categories.toArray();
 		}
 
 		@Override
 		public Object[] getChildren(Object parentElement) {
 			if (parentElement instanceof String) {
-				return index.getLibraries((String) parentElement).toArray(new ArduinoLibrary[0]);
+				String category = (String) parentElement;
+				List<ArduinoLibrary> libs = new ArrayList<>();
+				libs.addAll(index.getLibraries(category));
+				try {
+					for (ArduinoLibrary lib : getPlatform().getLibraries()) {
+						String cat = lib.getCategory();
+						if (cat != null) {
+							if (cat.equals(category)) {
+								libs.add(lib);
+							}
+						} else if (category.equals(LibraryIndex.UNCATEGORIZED)) { // cat
+																					// ==
+																					// null
+							libs.add(lib);
+						}
+					}
+				} catch (CoreException e) {
+					Activator.log(e);
+				}
+				return libs.toArray();
 			} else {
-				return null;
+				return new Object[0];
 			}
 		}
 	}
@@ -146,35 +187,82 @@ public class LibrariesPropertyPage extends PropertyPage {
 						}
 					}
 				}, true) {
+
 			@Override
 			protected TreeViewer doCreateTreeViewer(Composite parent, int style) {
-				return new ContainerCheckedTreeViewer(parent, style);
+				CheckboxTreeViewer viewer = new CheckboxTreeViewer(parent, style);
+				viewer.setCheckStateProvider(new ICheckStateProvider() {
+					@Override
+					public boolean isGrayed(Object element) {
+						if (element instanceof String) {
+							for (ArduinoLibrary lib : checkedLibs) {
+								if (element.equals(lib.getCategory())) {
+									return true;
+								}
+							}
+						}
+						return false;
+					}
+
+					@Override
+					public boolean isChecked(Object element) {
+						if (element instanceof ArduinoLibrary) {
+							return checkedLibs.contains(element);
+						} else if (element instanceof String) {
+							for (ArduinoLibrary lib : checkedLibs) {
+								if (element.equals(lib.getCategory())) {
+									return true;
+								}
+							}
+						}
+
+						return false;
+					}
+				});
+				viewer.addCheckStateListener(new ICheckStateListener() {
+					@Override
+					public void checkStateChanged(CheckStateChangedEvent event) {
+						Object element = event.getElement();
+						if (element instanceof ArduinoLibrary) {
+							if (event.getChecked()) {
+								checkedLibs.add((ArduinoLibrary) element);
+							} else {
+								checkedLibs.remove(element);
+							}
+						} else if (element instanceof String) {
+							if (!event.getChecked()) {
+								for (ArduinoLibrary lib : new ArrayList<>(checkedLibs)) {
+									if (element.equals(lib.getCategory())) {
+										checkedLibs.remove(lib);
+									}
+								}
+							}
+						}
+					}
+				});
+				return viewer;
 			}
 		};
 		filteredTree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-		ContainerCheckedTreeViewer viewer = (ContainerCheckedTreeViewer) filteredTree.getViewer();
+		TreeViewer viewer = filteredTree.getViewer();
 
 		Tree tree = viewer.getTree();
 		tree.setHeaderVisible(true);
 		TreeColumn column1 = new TreeColumn(tree, SWT.LEFT);
-		column1.setText("Name");
+		column1.setText(Messages.LibrariesPropertyPage_0);
 		column1.setWidth(200);
 		TreeColumn column2 = new TreeColumn(tree, SWT.LEFT);
-		column2.setText("Description");
+		column2.setText(Messages.LibrariesPropertyPage_1);
 		column2.setWidth(200);
 
 		viewer.setContentProvider(new ContentProvider());
 		viewer.setLabelProvider(new LabelProvider());
 
 		try {
-			viewer.setInput(ArduinoManager.instance.getLibraryIndex());
-			// Set the check states for currently selected libraries
 			IProject project = getElement().getAdapter(IProject.class);
-			Collection<ArduinoLibrary> libraries = ArduinoManager.instance.getLibraries(project);
-			for (ArduinoLibrary lib : libraries) {
-				viewer.setChecked(lib, true);
-			}
+			checkedLibs = new HashSet<>(manager.getLibraries(project));
+			viewer.setInput(manager.getLibraryIndex());
 		} catch (CoreException e) {
 			Activator.log(e);
 		}
@@ -182,19 +270,18 @@ public class LibrariesPropertyPage extends PropertyPage {
 		return comp;
 	}
 
+	private IProject getProject() {
+		return getElement().getAdapter(IProject.class);
+	}
+
+	private ArduinoPlatform getPlatform() throws CoreException {
+		return getProject().getActiveBuildConfig().getAdapter(ArduinoBuildConfiguration.class).getBoard().getPlatform();
+	}
+
 	@Override
 	public boolean performOk() {
-		List<ArduinoLibrary> libs = new ArrayList<>();
-		for (TreeItem categoryItem : filteredTree.getViewer().getTree().getItems()) {
-			for (TreeItem libItem : categoryItem.getItems()) {
-				ArduinoLibrary lib = (ArduinoLibrary) libItem.getData();
-				if (libItem.getChecked()) {
-					libs.add(lib);
-				}
-			}
-		}
 		try {
-			ArduinoManager.instance.setLibraries(getElement().getAdapter(IProject.class), libs);
+			manager.setLibraries(getProject(), checkedLibs);
 		} catch (CoreException e) {
 			Activator.log(e);
 		}

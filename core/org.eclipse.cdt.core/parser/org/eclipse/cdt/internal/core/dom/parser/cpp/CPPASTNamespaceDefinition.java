@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2014 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,15 +20,12 @@ import org.eclipse.cdt.core.dom.ast.IScope;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTNamespaceDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPNamespace;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
-import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * Definition of a namespace.
  */
-public class CPPASTNamespaceDefinition extends ASTAttributeOwner
-		implements ICPPASTNamespaceDefinition, IASTAmbiguityParent {
+public class CPPASTNamespaceDefinition extends CPPASTAttributeOwner implements ICPPASTNamespaceDefinition {
     private IASTName fName;
 	private IASTDeclaration[] fAllDeclarations;
 	private IASTDeclaration[] fActiveDeclarations;
@@ -162,8 +159,9 @@ public class CPPASTNamespaceDefinition extends ASTAttributeOwner
 				other.setPropertyInParent(child.getPropertyInParent());
 				fAllDeclarations[i] = (IASTDeclaration) other;
 				fActiveDeclarations= null;
-				break;
+				return;
 			}
 		}
+		super.replace(child, other);
     }
 }

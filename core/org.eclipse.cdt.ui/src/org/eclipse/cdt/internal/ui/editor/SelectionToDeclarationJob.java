@@ -57,11 +57,12 @@ import org.eclipse.cdt.core.model.ICProject;
 import org.eclipse.cdt.core.model.IFunctionDeclaration;
 import org.eclipse.cdt.core.model.ILanguage;
 import org.eclipse.cdt.core.model.ITranslationUnit;
+import org.eclipse.cdt.core.model.IWorkingCopy;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
 import org.eclipse.cdt.ui.CUIPlugin;
 
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.index.IIndexFragmentName;
 import org.eclipse.cdt.internal.core.model.ASTCache.ASTRunnable;
 import org.eclipse.cdt.internal.core.model.ext.CElementHandleFactory;
@@ -288,7 +289,7 @@ public class SelectionToDeclarationJob extends Job implements ASTRunnable {
 			IASTName name = astNames[i];
 			if (name.isDefinition()) {
 				astNames[i] = null;
-			} else if (CPPVisitor.findAncestorWithType(name, ICPPASTUsingDeclaration.class) != null) {
+			} else if (ASTQueries.findAncestorWithType(name, ICPPASTUsingDeclaration.class) != null) {
 				if (usingDeclarations == null)
 					usingDeclarations = new ArrayList<IASTName>(1);
 				usingDeclarations.add(name);
@@ -416,8 +417,10 @@ public class SelectionToDeclarationJob extends Job implements ASTRunnable {
 			IASTName astName = (IASTName) declName;
 			IBinding binding = astName.resolveBinding();
 			if (binding != null) {
-				ITranslationUnit tu = IndexUI.getTranslationUnit(project, astName);
+				ITranslationUnit tu = IndexUI.getTranslationUnit(astName);
 				if (tu != null) {
+					if (tu instanceof IWorkingCopy)
+						tu = ((IWorkingCopy) tu).getOriginalElement();
 					IASTFileLocation loc = astName.getFileLocation();
 					IRegion region = new Region(loc.getNodeOffset(), loc.getNodeLength());
 					return CElementHandleFactory.create(tu, binding, astName.isDefinition(), region, 0);

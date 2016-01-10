@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2011 QNX Software Systems and others.
+ * Copyright (c) 2007, 2013 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,6 +11,7 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionTemplate;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateInstance;
@@ -32,8 +33,8 @@ class PDOMCPPFunctionTemplateSpecialization extends	PDOMCPPFunctionSpecializatio
 		implements ICPPFunctionTemplate, ICPPInstanceCache, IPDOMMemberOwner {
 	
 	public PDOMCPPFunctionTemplateSpecialization(PDOMCPPLinkage linkage, PDOMNode parent,
-			ICPPFunctionTemplate template, PDOMBinding specialized) throws CoreException {
-		super(linkage, parent, template, specialized);
+			ICPPFunctionTemplate template, PDOMBinding specialized, IASTNode point) throws CoreException {
+		super(linkage, parent, template, specialized, point);
 	}
 
 	public PDOMCPPFunctionTemplateSpecialization(PDOMLinkage linkage, long bindingRecord) {

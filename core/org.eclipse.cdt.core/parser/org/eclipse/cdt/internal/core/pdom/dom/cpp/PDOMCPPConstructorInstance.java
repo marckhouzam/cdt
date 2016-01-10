@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2010 QNX Software Systems and others.
+ * Copyright (c) 2007, 2013 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPConstructor;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
@@ -29,8 +30,8 @@ public class PDOMCPPConstructorInstance extends PDOMCPPMethodInstance implements
 	protected static final int RECORD_SIZE = PDOMCPPMethodInstance.RECORD_SIZE + 0;
 	
 	public PDOMCPPConstructorInstance(PDOMCPPLinkage linkage, PDOMNode parent, ICPPMethod method,
-			PDOMBinding instantiated) throws CoreException {
-		super(linkage, parent, method, instantiated);
+			PDOMBinding instantiated, IASTNode point) throws CoreException {
+		super(linkage, parent, method, instantiated, point);
 	}
 	
 	public PDOMCPPConstructorInstance(PDOMLinkage linkage, long bindingRecord) {

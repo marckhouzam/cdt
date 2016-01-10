@@ -32,7 +32,6 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.FindReplaceDocumentAdapter;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
-import org.eclipse.jface.text.ITextOperationTarget;
 import org.eclipse.jface.text.rules.IWordDetector;
 import org.eclipse.jface.text.source.DefaultCharacterPairMatcher;
 import org.eclipse.jface.text.source.ISourceViewer;
@@ -186,18 +185,18 @@ public class MakefileEditor extends TextEditor implements ISelectionChangedListe
 		return viewer;
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings("unchecked")
 	@Override
-	public Object getAdapter(Class key) {
+	public <T> T getAdapter(Class<T> key) {
 		if (ProjectionAnnotationModel.class.equals(key)) {
 			if (projectionSupport != null) {
-				Object result = projectionSupport.getAdapter(getSourceViewer(), key);
+				T result = projectionSupport.getAdapter(getSourceViewer(), key);
 				if (result != null) {
 					return result;
 				}
 			}
 		} else if (key.equals(IContentOutlinePage.class)) {
-			return getOutlinePage();
+			return (T) getOutlinePage();
 		}
 		return super.getAdapter(key);
 	}
@@ -224,15 +223,14 @@ public class MakefileEditor extends TextEditor implements ISelectionChangedListe
 		a.setActionDefinitionId(ITextEditorActionDefinitionIds.CONTENT_ASSIST_CONTEXT_INFORMATION);
 		setAction("ContentAssistTip", a); //$NON-NLS-1$
 
-		a = new TextOperationAction(bundle, "Comment.", this, ITextOperationTarget.PREFIX); //$NON-NLS-1$
-		a.setActionDefinitionId(IMakefileEditorActionDefinitionIds.COMMENT);
-		setAction("Comment", a); //$NON-NLS-1$
-		markAsStateDependentAction("Comment", true); //$NON-NLS-1$
+		a = new MakefileToggleCommentAction(bundle, "ToggleComment.", this); //$NON-NLS-1$
+		a.setActionDefinitionId(IMakefileEditorActionDefinitionIds.TOGGLE_COMMENT);
+		setAction("ToggleComment", a); //$NON-NLS-1$
+		markAsStateDependentAction("ToggleComment", true); //$NON-NLS-1$
 
-		a = new TextOperationAction(bundle, "Uncomment.", this, ITextOperationTarget.STRIP_PREFIX); //$NON-NLS-1$
-		a.setActionDefinitionId(IMakefileEditorActionDefinitionIds.UNCOMMENT);
-		setAction("Uncomment", a); //$NON-NLS-1$
-		markAsStateDependentAction("Uncomment", true); //$NON-NLS-1$
+		ISourceViewer sourceViewer = getSourceViewer();
+		SourceViewerConfiguration configuration = getSourceViewerConfiguration();
+		((MakefileToggleCommentAction) a).configure(sourceViewer, configuration);
 
 		a = new OpenDeclarationAction(this);
 		a.setActionDefinitionId(IMakefileEditorActionDefinitionIds.OPEN_DECLARATION);

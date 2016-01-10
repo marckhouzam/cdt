@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2012 Ericsson and others.
+ * Copyright (c) 2011, 2015 Ericsson and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -70,6 +70,7 @@ public class PostMortemCoreTest extends BaseTestCase {
 
     @Override
 	public void doBeforeTest() throws Exception {
+		removeTeminatedLaunchesBeforeTest();
 		setLaunchAttributes();
 		// Can't run the launch right away because each test needs to first set some 
 		// parameters.  The individual tests will be responsible for starting the launch. 

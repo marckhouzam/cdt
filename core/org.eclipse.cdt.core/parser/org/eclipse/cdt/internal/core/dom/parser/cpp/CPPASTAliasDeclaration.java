@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2014 Institute for Software, HSR Hochschule fuer Technik
+ * Copyright (c) 2012, 2015 Institute for Software, HSR Hochschule fuer Technik
  * Rapperswil, University of applied sciences.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,9 +15,8 @@ import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTAliasDeclaration;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTypeId;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 
-public class CPPASTAliasDeclaration extends ASTAttributeOwner implements ICPPASTAliasDeclaration {
+public class CPPASTAliasDeclaration extends CPPASTAttributeOwner implements ICPPASTAliasDeclaration {
 	private IASTName aliasName;
 	private ICPPASTTypeId mappingTypeId;
 

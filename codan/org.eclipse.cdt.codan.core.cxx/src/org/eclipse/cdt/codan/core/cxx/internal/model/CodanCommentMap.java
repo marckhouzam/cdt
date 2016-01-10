@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009,2010 QNX Software Systems
+ * Copyright (c) 2009,2012 QNX Software Systems
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -30,35 +30,16 @@ public class CodanCommentMap implements ICodanCommentMap {
 		this.commentedNodeMap = commentedNodeMap;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.cxx.model.ICodanCommentMap#
-	 * getTrailingCommentsForNode(org.eclipse.cdt.core.dom.ast.IASTNode)
-	 */
 	@Override
 	public List<IASTComment> getTrailingCommentsForNode(IASTNode node) {
 		return commentedNodeMap.getTrailingCommentsForNode(node);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.eclipse.cdt.codan.core.cxx.model.ICodanCommentMap#
-	 * getLeadingCommentsForNode(org.eclipse.cdt.core.dom.ast.IASTNode)
-	 */
 	@Override
 	public List<IASTComment> getLeadingCommentsForNode(IASTNode node) {
 		return commentedNodeMap.getLeadingCommentsForNode(node);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * org.eclipse.cdt.codan.core.cxx.model.ICodanCommentMap#getFreestandingForNode
-	 * (org.eclipse.cdt.core.dom.ast.IASTStatement)
-	 */
 	@Override
 	public List<IASTComment> getFreestandingForNode(IASTNode node) {
 		return commentedNodeMap.getFreestandingCommentsForNode(node);

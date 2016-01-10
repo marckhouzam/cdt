@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2012 Andrew Gvozdev and others.
+ * Copyright (c) 2009, 2013 Andrew Gvozdev and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,6 +40,7 @@ public class GCCBuildCommandParser extends AbstractBuildCommandParser implements
 			new IncludeFileOptionParser("-include\\s*([\"'])(.*)\\1", "$2"),
 			new IncludeFileOptionParser("-include\\s*([^\\s\"']*)", "$1"),
 			new MacroOptionParser("-D\\s*([\"'])([^=]*)(=(.*))?\\1", "$2", "$4"),
+			new MacroOptionParser("-D\\s*([^\\s=\"']*)=(\"\\\\(\")(.*?)\\\\\"\")", "$1", "$3$4$3"),
 			new MacroOptionParser("-D\\s*([^\\s=\"']*)=(\\\\([\"']))(.*?)\\2", "$1", "$3$4$3"),
 			new MacroOptionParser("-D\\s*([^\\s=\"']*)=([\"'])(.*?)\\2", "$1", "$3"),
 			new MacroOptionParser("-D\\s*([^\\s=\"']*)(=([^\\s\"']*))?", "$1", "$3"),

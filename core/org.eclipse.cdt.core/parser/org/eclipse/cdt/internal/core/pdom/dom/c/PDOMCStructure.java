@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2010 QNX Software Systems and others.
+ * Copyright (c) 2006, 2015 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,6 +20,7 @@ import org.eclipse.cdt.core.dom.IPDOMNode;
 import org.eclipse.cdt.core.dom.IPDOMVisitor;
 import org.eclipse.cdt.core.dom.ast.EScopeKind;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.ICompositeType;
@@ -71,12 +72,12 @@ public class PDOMCStructure extends PDOMBinding implements ICompositeType, ICCom
 	}
 	
 	@Override
-	public void update(PDOMLinkage linkage, IBinding newBinding) throws CoreException {
+	public void update(PDOMLinkage linkage, IBinding newBinding, IASTNode point) throws CoreException {
 		if (newBinding instanceof ICompositeType) {
 			ICompositeType ct= (ICompositeType) newBinding;
 			setKind(ct);
 			setAnonymous(ct);
-			super.update(linkage, newBinding);
+			super.update(linkage, newBinding, point);
 		}
 	}
 

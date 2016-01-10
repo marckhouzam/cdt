@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2012 Wind River Systems, Inc. and others.
+ * Copyright (c) 2006, 2014 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,6 +26,8 @@ public class Messages extends NLS {
 	public static String Gdbserver_Settings_Tab_Name;
 
 	public static String Port_number_textfield_label;
+
+	public static String Gdbserver_options_textfield_label;
 
 	public static String Remote_GDB_Debugger_Options;
 

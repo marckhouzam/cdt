@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2014 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,14 +15,11 @@ import org.eclipse.cdt.core.dom.ast.ASTVisitor;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTExpressionStatement;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
-import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 
 /**
  * @author jcamelon
  */
-public class CPPASTExpressionStatement extends ASTAttributeOwner
-		implements IASTExpressionStatement, IASTAmbiguityParent {
+public class CPPASTExpressionStatement extends CPPASTAttributeOwner implements IASTExpressionStatement {
     private IASTExpression expression;
     
     public CPPASTExpressionStatement() {
@@ -88,6 +85,8 @@ public class CPPASTExpressionStatement extends ASTAttributeOwner
             other.setPropertyInParent(child.getPropertyInParent());
             other.setParent(child.getParent());
             expression = (IASTExpression) other;
+            return;
         }
+        super.replace(child, other);
     }
 }

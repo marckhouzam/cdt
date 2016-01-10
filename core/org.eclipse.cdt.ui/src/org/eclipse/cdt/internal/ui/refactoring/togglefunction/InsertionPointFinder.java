@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011 Institute for Software, HSR Hochschule fuer Technik  
+ * Copyright (c) 2011, 2013 Institute for Software, HSR Hochschule fuer Technik  
  * Rapperswil, University of applied sciences and others.
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0 
@@ -25,8 +25,8 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTFunctionDefinition;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateDeclaration;
 
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTCompositeTypeSpecifier;
-import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 import org.eclipse.cdt.internal.ui.refactoring.Container;
 
@@ -93,7 +93,7 @@ public class InsertionPointFinder {
 				public int visit(IASTDeclaration declaration) {
 					if (declaration instanceof ICPPASTFunctionDefinition) {
 							if (declaration.getParent() != null &&
-									CPPVisitor.findAncestorWithType(declaration, CPPASTCompositeTypeSpecifier.class) != null) {
+									ASTQueries.findAncestorWithType(declaration, CPPASTCompositeTypeSpecifier.class) != null) {
 								return PROCESS_CONTINUE;
 							}
 						definitions.add((ICPPASTFunctionDefinition) declaration);

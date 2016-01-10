@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Software, HSR Hochschule fuer Technik
+ * Copyright (c) 2014, 2015 Institute for Software, HSR Hochschule fuer Technik and others
  * Rapperswil, University of applied sciences and others
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,10 +17,12 @@ import org.eclipse.cdt.core.parser.util.InstanceOfPredicate;
 /**
  * Represents a GCC attribute specifier, introduced by __attribute__.
  *
+ * @deprecated Use IGCCASTAttributeList instead.
  * @noextend This interface is not intended to be extended by clients.
  * @noimplement This interface is not intended to be implemented by clients.
  * @since 5.7
  */
+@Deprecated
 public interface IGCCASTAttributeSpecifier extends IASTAttributeSpecifier {
 	public static InstanceOfPredicate<IASTAttributeSpecifier> TYPE_FILTER =
 			new InstanceOfPredicate<>(IGCCASTAttributeSpecifier.class);

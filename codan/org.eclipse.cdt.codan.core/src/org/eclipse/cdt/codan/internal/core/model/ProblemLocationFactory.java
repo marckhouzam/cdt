@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2010 Alena Laskavaia
+ * Copyright (c) 2009, 2015 Alena Laskavaia
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -22,12 +22,6 @@ public class ProblemLocationFactory implements IProblemLocationFactory {
 	@Override
 	public IProblemLocation createProblemLocation(IFile file, int line) {
 		return new CodanProblemLocation(file, line);
-	}
-
-	@Override
-	@Deprecated
-	public IProblemLocation createProblemLocation(IFile file, int startChar, int endChar) {
-		return new CodanProblemLocation(file, startChar, endChar);
 	}
 
 	@Override

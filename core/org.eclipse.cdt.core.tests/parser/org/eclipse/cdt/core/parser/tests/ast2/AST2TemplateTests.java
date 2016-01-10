@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2014 IBM Corporation and others.
+ * Copyright (c) 2005, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8752,6 +8752,24 @@ public class AST2TemplateTests extends AST2TestBase {
 	public void testConstexprFunctionCallWithNonConstexprArguments_429891() throws Exception {
 		parseAndCheckBindings();
 	}
+	
+	//	template <typename>
+	//	struct S;
+	//
+	//	template <>
+	//	struct S<int> {
+	//		static const int value = 42;
+	//	};
+	//
+	//	template <typename T>
+	//	constexpr int foo() {
+	//		return S<T>::value;
+	//	}
+	//
+	//	constexpr int waldo = foo<int>();
+	public void testInstantiationOfReturnExpression_484959() throws Exception {
+		getAssertionHelper().assertVariableValue("waldo", 42);
+	}
 
 	//	template <typename> class A {};
 	//	template <int>      class B {};
@@ -8952,6 +8970,44 @@ public class AST2TemplateTests extends AST2TestBase {
 	//	  }
 	//	};
 	public void testRegression_421823() throws Exception {
+		parseAndCheckBindings();
+	}
+
+	//	template<typename E>
+	//	class G {};
+	//
+	//	template<typename E>
+	//	void waldo(G<E>);
+	//
+	//	template <typename T>
+	//	struct A {
+	//	  typedef G<T> type;
+	//	};
+	//
+	//	template <typename... T>
+	//	using B = typename A<T...>::type;
+	//
+	//	template <typename T>
+	//	class C : public B<T> {
+	//	};
+	//
+	//	void test() {
+	//	  C<int> a;
+	//	  waldo(a);
+	//	}
+	public void testRecursiveTemplateClass_484786() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	template <typename T>
+	//	struct S {
+	//		static const bool value = true;
+	//	};
+	//
+	//	typedef int Int;
+	//
+	//	void waldo() noexcept(S<Int>::value) {}
+	public void testDisambiguationInNoexceptSpecifier_467332() throws Exception {
 		parseAndCheckBindings();
 	}
 }

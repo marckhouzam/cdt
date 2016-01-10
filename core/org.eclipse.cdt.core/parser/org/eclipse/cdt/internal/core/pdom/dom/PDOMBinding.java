@@ -19,6 +19,7 @@ import java.lang.reflect.Modifier;
 import org.eclipse.cdt.core.CCorePlugin;
 import org.eclipse.cdt.core.dom.ast.ASTTypeUtil;
 import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IFunction;
 import org.eclipse.cdt.core.dom.ast.IFunctionType;
@@ -44,14 +45,14 @@ import org.eclipse.core.runtime.CoreException;
 public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding {
 	public static final PDOMBinding[] EMPTY_PDOMBINDING_ARRAY = {};
 
-	private static final int FIRST_DECL_OFFSET   = PDOMNamedNode.RECORD_SIZE + 0; // size 4
-	private static final int FIRST_DEF_OFFSET    = PDOMNamedNode.RECORD_SIZE + 4; // size 4
-	private static final int FIRST_REF_OFFSET    = PDOMNamedNode.RECORD_SIZE + 8; // size 4
-	private static final int LOCAL_TO_FILE		 = PDOMNamedNode.RECORD_SIZE + 12; // size 4
-	private static final int FIRST_EXTREF_OFFSET = PDOMNamedNode.RECORD_SIZE + 16; // size 4
+	private static final int FIRST_DECL_OFFSET   = PDOMNamedNode.RECORD_SIZE; // size 4
+	private static final int FIRST_DEF_OFFSET    = FIRST_DECL_OFFSET + Database.PTR_SIZE; // size 4
+	private static final int FIRST_REF_OFFSET    = FIRST_DEF_OFFSET + Database.PTR_SIZE; // size 4
+	private static final int LOCAL_TO_FILE		 = FIRST_REF_OFFSET + Database.PTR_SIZE; // size 4
+	private static final int FIRST_EXTREF_OFFSET = LOCAL_TO_FILE + Database.PTR_SIZE; // size 4
 
 	@SuppressWarnings("hiding")
-	protected static final int RECORD_SIZE = PDOMNamedNode.RECORD_SIZE + 20;
+	protected static final int RECORD_SIZE = FIRST_EXTREF_OFFSET + + Database.PTR_SIZE;
 
 	private byte hasDeclaration= -1;
 
@@ -64,10 +65,10 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	}
 
 	@Override
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public Object getAdapter(Class adapter) {
+	@SuppressWarnings("unchecked")
+	public <T> T getAdapter(Class<T> adapter) {
 		if (adapter.isAssignableFrom(PDOMBinding.class))
-			return this;
+			return (T) this;
 
 		// Any PDOMBinding can have a persistent tag.  These tags should be deleted when
 		// the PDOMBinding is deleted.  However, PDOMBinding's don't get deleted, so there is no way
@@ -76,7 +77,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 		// PDOMTagIndex.setTags(getPDOM(), pdomBinding.record, Collections.<ITag>emptyList());
 		// to clear out all tags for the binding.
 		if (adapter.isAssignableFrom(ITagReader.class))
-			return new PDOMTaggable(getPDOM(), getRecord());
+			return (T) new PDOMTaggable(getPDOM(), getRecord());
 
 		return null;
 	}
@@ -88,7 +89,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	 *
 	 * @param pdom
 	 * @param record
-	 * @return <code>true</code> if the binding is orphaned.
+	 * @return {@code true} if the binding is orphaned.
 	 * @throws CoreException
 	 */
 	public static boolean isOrphaned(PDOM pdom, long record) throws CoreException {
@@ -313,7 +314,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	 * For debug purposes only.
 	 * @param linkage
 	 * @param value
-	 * @return String representation of <code>value</code>.
+	 * @return String representation of {@code value}.
 	 */
 	protected static String getConstantNameForValue(PDOMLinkage linkage, int value) {
 		Class<? extends PDOMLinkage> c= linkage.getClass();
@@ -328,9 +329,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 							return field.getName();
 					}
 				}
-			} catch (IllegalAccessException e) {
-				continue;
-			} catch (IllegalArgumentException e) {
+			} catch (IllegalAccessException | IllegalArgumentException e) {
 				continue;
 			}
 		}
@@ -355,7 +354,7 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	}
 
 	@Override
-	final public boolean isFileLocal() throws CoreException {
+	public final boolean isFileLocal() throws CoreException {
 		return getDB().getRecPtr(record + LOCAL_TO_FILE) != 0;
 	}
 
@@ -402,8 +401,8 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 				}
 			} while (cmp == 0 && b1 != null && b0 != null);
 			return cmp;
-		} catch (CoreException ce) {
-			CCorePlugin.log(ce);
+		} catch (CoreException e) {
+			CCorePlugin.log(e);
 			return -1;
 		}
 	}
@@ -437,14 +436,16 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 	}
 
 	/**
-	 * The binding is reused by a declaration or definition, we may need to update modifiers.
-	 * @throws CoreException
+	 * The binding is reused by a declaration or definition, update the binding, e.g. modifiers,
+	 * with the new information.
+	 *
+	 * @param point the point of instantiation for name lookups
 	 */
-	public void update(PDOMLinkage linkage, IBinding newBinding) throws CoreException {
+	public void update(PDOMLinkage linkage, IBinding newBinding, IASTNode point) throws CoreException {
 	}
 
 	@Override
-	final public void delete(PDOMLinkage linkage) throws CoreException {
+	public final void delete(PDOMLinkage linkage) throws CoreException {
 		assert false;
 	}
 
@@ -467,11 +468,6 @@ public abstract class PDOMBinding extends PDOMNamedNode implements IPDOMBinding 
 
 	public final IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix) {
 		return getBindings(new ScopeLookupData(name, resolve, prefix));
-	}
-
-	@Deprecated
-	public IBinding[] getBindings(IASTName name, boolean resolve, boolean prefix, IIndexFileSet fileSet) {
-		return IBinding.EMPTY_BINDING_ARRAY;
 	}
 
 	public IBinding[] getBindings(ScopeLookupData lookup) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2014 QNX Software Systems and others.
+ * Copyright (c) 2007, 2015 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,12 +14,12 @@
 package org.eclipse.cdt.internal.core.pdom.dom.cpp;
 
 import org.eclipse.cdt.core.CCorePlugin;
+import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IType;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunctionInstance;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateDefinition;
-import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateInstance;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPTemplates;
 import org.eclipse.cdt.internal.core.index.IIndexCPPBindingConstants;
 import org.eclipse.cdt.internal.core.pdom.db.Database;
@@ -40,21 +40,29 @@ class PDOMCPPFunctionInstance extends PDOMCPPFunctionSpecialization implements I
 	@SuppressWarnings("hiding")
 	protected static final int RECORD_SIZE = PDOMCPPFunctionSpecialization.RECORD_SIZE + 8;
 	
-	public PDOMCPPFunctionInstance(PDOMCPPLinkage linkage, PDOMNode parent, ICPPFunction function, PDOMBinding orig)
-			throws CoreException {
-		super(linkage, parent, function, orig);
+	public PDOMCPPFunctionInstance(PDOMCPPLinkage linkage, PDOMNode parent, ICPPFunction function, 
+			PDOMBinding orig, IASTNode point) throws CoreException {
+		super(linkage, parent, function, orig, point);
 
-		final ICPPTemplateInstance asInstance= (ICPPTemplateInstance) function;
-		final long argListRec= PDOMCPPArgumentList.putArguments(this, asInstance.getTemplateArguments());
 		final Database db = getDB();
-		db.putRecPtr(record + ARGUMENTS, argListRec);
-		
 		long exceptSpecRec = PDOMCPPTypeList.putTypes(this, function.getExceptionSpecification());
 		db.putRecPtr(record + EXCEPTION_SPEC, exceptSpecRec);
+		
+		linkage.new ConfigureFunctionInstance(function, this);
 	}
 
 	public PDOMCPPFunctionInstance(PDOMLinkage linkage, long bindingRecord) {
 		super(linkage, bindingRecord);
+	}
+	
+	public void initData(ICPPTemplateArgument[] templateArguments) {
+		try {
+			final long argListRec= PDOMCPPArgumentList.putArguments(this, templateArguments);
+			final Database db = getDB();
+			db.putRecPtr(record + ARGUMENTS, argListRec);
+		} catch (CoreException e) {
+			CCorePlugin.log(e);
+		}
 	}
 
 	@Override

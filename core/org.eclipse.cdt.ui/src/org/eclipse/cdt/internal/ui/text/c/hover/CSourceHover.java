@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2002, 2014 QNX Software Systems and others.
+ * Copyright (c) 2002, 2015 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -101,6 +101,7 @@ import org.eclipse.cdt.ui.CUIPlugin;
 import org.eclipse.cdt.ui.IWorkingCopyManager;
 import org.eclipse.cdt.ui.text.ICPartitions;
 
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 import org.eclipse.cdt.internal.core.model.ASTCache.ASTRunnable;
 import org.eclipse.cdt.internal.corext.util.Strings;
@@ -444,10 +445,10 @@ public class CSourceHover extends AbstractCEditorTextHover {
 		 *     otherwise {@code null}.
 		 */
 		private String computeHoverForDeclaration(IASTName name) {
-			ICPPASTDeclarator declarator = CPPVisitor.findAncestorWithType(name, ICPPASTDeclarator.class);
+			ICPPASTDeclarator declarator = ASTQueries.findAncestorWithType(name, ICPPASTDeclarator.class);
 			if (declarator == null)
 				return null;
-			IASTDeclaration declaration = CPPVisitor.findAncestorWithType(declarator, IASTDeclaration.class);
+			IASTDeclaration declaration = ASTQueries.findAncestorWithType(declarator, IASTDeclaration.class);
 			IASTDeclSpecifier declSpec = null;
 			if (declaration instanceof IASTSimpleDeclaration) {
 				declSpec = ((IASTSimpleDeclaration) declaration).getDeclSpecifier();

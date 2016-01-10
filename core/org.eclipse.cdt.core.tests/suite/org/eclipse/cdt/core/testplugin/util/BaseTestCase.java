@@ -32,6 +32,7 @@ import junit.framework.TestResult;
 import junit.framework.TestSuite;
 
 import org.eclipse.cdt.core.CCorePlugin;
+import org.eclipse.cdt.core.dom.ast.IVariable;
 import org.eclipse.cdt.core.index.IIndex;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ElementChangedEvent;
@@ -336,5 +337,23 @@ public class BaseTestCase extends TestCase {
 
 	public static void waitUntilFileIsIndexed(IIndex index, IFile file) throws Exception {
 		TestSourceReader.waitUntilFileIsIndexed(index, file, INDEXER_TIMEOUT_SEC * 1000);
+	}
+
+	// Assertion helpers
+	
+	protected static <T> T assertInstance(Object o, Class<T> clazz, Class... cs) {
+		assertNotNull("Expected object of " + clazz.getName() + " but got a null value", o);
+		assertTrue("Expected "+clazz.getName()+" but got "+o.getClass().getName(), clazz.isInstance(o));
+		for (Class c : cs) {
+			assertNotNull("Expected object of " + c.getName() + " but got a null value", o);
+			assertTrue("Expected " + c.getName() + " but got " + o.getClass().getName(), c.isInstance(o));
+		}
+		return clazz.cast(o);
+	}
+	
+	protected static void assertVariableValue(IVariable var, long expectedValue) {
+		assertNotNull(var.getInitialValue());
+		assertNotNull(var.getInitialValue().numericalValue());
+		assertEquals(expectedValue, var.getInitialValue().numericalValue().longValue());
 	}
 }

@@ -7824,6 +7824,23 @@ public class AST2CPPTests extends AST2TestBase {
 	public void testTypeLookupWithMultipleInheritance_286213() throws Exception {
 		parseAndCheckBindings();
 	}
+	
+	//	template<class>
+	//	struct ContainerOf {
+	//		int numParts;
+	//	};
+	//
+	//	struct HumanPart;
+	//	struct RobotPart;
+	//
+	//	struct BionicMan : ContainerOf<HumanPart>, ContainerOf<RobotPart> {
+	//		int numRoboParts() {
+	//			return ContainerOf<RobotPart>::numParts;
+	//		}
+	//	};
+	public void testInheritanceFromMultipleInstancesOfSameTemplate_383502() throws Exception {
+		parseAndCheckBindings();
+	}
 
 	//	int v1;
 	//	static int v2;
@@ -11249,6 +11266,12 @@ public class AST2CPPTests extends AST2TestBase {
 	public void testAlignas_451082() throws Exception {
 		parseAndCheckBindings();
 	}
+	
+	//	struct alignas(16) Node {};
+	//	enum alignas(8) E { E1, E2 };
+	public void testAlignas_475739() throws Exception {
+		parseAndCheckBindings();
+	}
 
 	// int operator "" _A(unsigned long long i) { return 1; }
 	// int operator "" _B(long double d) { return 1; }
@@ -11552,13 +11575,10 @@ public class AST2CPPTests extends AST2TestBase {
 	}
 
 	// // Test name lacking a space
+	// int operator ""X(const char* s) { return 0; }
 	// int operator ""_X(const char* s) { return 0; }
 	public void testUserDefinedLiteralNoWhiteSpace1() throws Exception {
-		IASTTranslationUnit tu = parse(getAboveComment(), CPP, true, false);
-		IASTDeclaration decl = tu.getDeclarations()[0];
-
-		assertTrue(decl instanceof IASTProblemDeclaration);
-		assertEquals(IProblem.SYNTAX_ERROR, ((IASTProblemDeclaration)decl).getProblem().getID());
+		parseAndCheckBindings();
 	}
 
 	// // Test literals with spaces before the suffix
@@ -11619,7 +11639,14 @@ public class AST2CPPTests extends AST2TestBase {
 		BindingAssertionHelper bh = getAssertionHelper();
 		ICPPVariable test = bh.assertNonProblemOnFirstIdentifier("test");
 		assertTrue(test.getType() instanceof IProblemType); // resolution is ambiguous
-  }
+	}
+	
+	//	char foo() {
+	//		return '*';
+	//	}
+	public void testRegression_484618() throws Exception {
+		parseAndCheckImplicitNameBindings();
+	}
 	
 	//	constexpr int lambdas_supported = 
 	//	#if __has_feature(cxx_lambdas)
@@ -11744,5 +11771,18 @@ public class AST2CPPTests extends AST2TestBase {
 		IASTImplicitName[] implicitNames = ((IASTImplicitNameOwner) typeConstructorExpr).getImplicitNames();
 		assertEquals(1, implicitNames.length);
 		assertEquals(ctor, implicitNames[0].resolveBinding());
+	}
+	
+	//	template <typename T>
+	//	struct Waldo {
+	//	    T x;
+	//	};
+	//
+	//	void test() {
+	//	    using Waldo = Waldo<int>;
+	//	    auto size = sizeof(Waldo::x);
+	//	}
+	public void testShadowingAliasDeclaration_484200() throws Exception {
+		parseAndCheckBindings();
 	}
 }

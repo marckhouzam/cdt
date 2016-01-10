@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2014 Wind River Systems, Inc. and others.
+ * Copyright (c) 2012, 2015 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -50,6 +50,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateArgument;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateNonTypeParameter;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTemplateParameterMap;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPTypeSpecialization;
+import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
 import org.eclipse.cdt.internal.core.dom.parser.ISerializableEvaluation;
 import org.eclipse.cdt.internal.core.dom.parser.ITypeMarshalBuffer;
 import org.eclipse.cdt.internal.core.dom.parser.Value;
@@ -150,7 +151,7 @@ public class EvalID extends CPPDependentEvaluation {
 	}
 
 	@Override
-	public IType getTypeOrFunctionSet(IASTNode point) {
+	public IType getType(IASTNode point) {
 		return new TypeOfDependentExpression(this);
 	}
 
@@ -293,7 +294,7 @@ public class EvalID extends CPPDependentEvaluation {
 	 * Returns {@code true} if the given node is located inside the given enum.
 	 */
 	private static boolean isInsideEnum(IASTNode node, ICPPEnumeration enumBinding) {
-		IASTEnumerator enumeratorNode = CPPVisitor.findAncestorWithType(node, IASTEnumerator.class);
+		IASTEnumerator enumeratorNode = ASTQueries.findAncestorWithType(node, IASTEnumerator.class);
 		if (enumeratorNode == null)
 			return false;
 		IBinding enumerator = enumeratorNode.getName().getBinding();
@@ -370,7 +371,7 @@ public class EvalID extends CPPDependentEvaluation {
 		}
 		
 		if (fieldOwner != null && !fieldOwner.isTypeDependent()) {
-			IType fieldOwnerType = fieldOwner.getTypeOrFunctionSet(point);
+			IType fieldOwnerType = fieldOwner.getType(point);
 			if (fIsPointerDeref) {
 				fieldOwnerType = SemanticUtil.getSimplifiedType(fieldOwnerType);
 				if (fieldOwnerType instanceof IPointerType) {

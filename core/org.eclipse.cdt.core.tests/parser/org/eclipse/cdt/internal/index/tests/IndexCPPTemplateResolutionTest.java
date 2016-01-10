@@ -2644,6 +2644,25 @@ public class IndexCPPTemplateResolutionTest extends IndexBindingResolutionTestBa
 	public void testSpecializationOfConstexprFunction_420995() throws Exception {
 		checkBindings();
 	}
+	
+	//	template <typename>
+	//	struct S;
+	//
+	//	template <>
+	//	struct S<int> {
+	//		static const int value = 42;
+	//	};
+	//
+	//	template <typename T>
+	//	constexpr int foo() {
+	//		return S<T>::value;
+	//	}
+	
+	//	constexpr int waldo = foo<int>();
+	public void testInstantiationOfReturnExpression_484959() throws Exception {
+		ICPPVariable waldo = getBindingFromASTName("waldo", 5);
+		assertVariableValue(waldo, 42);
+	}
 
 	//	template <class TYPE>
 	//	class waldo {
@@ -2868,6 +2887,24 @@ public class IndexCPPTemplateResolutionTest extends IndexBindingResolutionTestBa
 	public void testRecursiveTemplateInstantiation_479138c() throws Exception {
 		// This tests that a template metaprogram that doesn't terminate at all
 		// (e.g. because the author omitted a base case) doesn't cause a stack overflow.
+		checkBindings();
+	}
+
+	//	template<int L> constexpr
+	//	auto Bar(char const (&val)[L]) -> int {
+	//		return 0;
+	//	}
+	//
+	//	template<int K>
+	//	auto Foo() -> int;
+	//
+	//	template<>
+	//	auto Foo<Bar("")>() -> int {
+	//		return 1;
+	//	}
+	
+	//	// empty file
+	public void testStackOverflow_462764() throws Exception {
 		checkBindings();
 	}
 }

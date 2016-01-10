@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2014 IBM Corporation and others.
+ * Copyright (c) 2004, 2015 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -34,18 +34,16 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLinkageSpecification;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassScope;
 import org.eclipse.cdt.core.parser.util.ArrayUtil;
-import org.eclipse.cdt.internal.core.dom.parser.ASTAttributeOwner;
 import org.eclipse.cdt.internal.core.dom.parser.ASTNode;
 import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
-import org.eclipse.cdt.internal.core.dom.parser.IASTAmbiguityParent;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPSemantics;
 import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.CPPVisitor;
 
 /**
  * C++ specific declarator.
  */
-public class CPPASTDeclarator extends ASTAttributeOwner implements ICPPASTDeclarator, IASTImplicitNameOwner,
-		IASTAmbiguityParent {
+public class CPPASTDeclarator extends CPPASTAttributeOwner implements ICPPASTDeclarator, 
+		IASTImplicitNameOwner {
     private IASTInitializer initializer;
     private IASTName name;
 	private IASTImplicitName[] implicitNames; 
@@ -301,6 +299,8 @@ public class CPPASTDeclarator extends ASTAttributeOwner implements ICPPASTDeclar
 			other.setPropertyInParent(child.getPropertyInParent());
 			other.setParent(child.getParent());
 			nested= (IASTDeclarator) other;
+			return;
 		}
+		super.replace(child, other);
 	}
 }

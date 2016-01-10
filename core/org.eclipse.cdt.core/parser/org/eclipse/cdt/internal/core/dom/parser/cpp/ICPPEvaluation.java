@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2013 Wind River Systems, Inc. and others.
+ * Copyright (c) 2012, 2014 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -49,12 +49,13 @@ public interface ICPPEvaluation extends ISerializableEvaluation {
 	boolean isConstantExpression(IASTNode point);
 
 	/**
-	 * Returns the type of the expression, or a {@code FunctionSetType} if the expression evaluates
-	 * to a function set.
+	 * Returns the type of the expression.
+	 * 
+	 * If the expression evaluates to a function set, a {@code FunctionSetType} is returned.
 	 *
 	 * @param point the point of instantiation, determines the scope for name lookups
 	 */
-	IType getTypeOrFunctionSet(IASTNode point);
+	IType getType(IASTNode point);
 
 	/**
 	 * Returns the value of the expression.
@@ -163,9 +164,9 @@ public interface ICPPEvaluation extends ISerializableEvaluation {
 	boolean referencesTemplateParameter();
 	
 	/**
-	 * If the evaluation is dependent (or instantiated from a dependent
-	 * evaluation), returns the template definition in which the
-	 * evaluation occurs. Otherwise returns null. 
+	 * If the evaluation is dependent (or instantiated from a dependent evaluation),
+	 * returns the template definition in which the evaluation occurs.
+	 * Otherwise returns {@code null}. 
 	 */
 	IBinding getTemplateDefinition();
 }

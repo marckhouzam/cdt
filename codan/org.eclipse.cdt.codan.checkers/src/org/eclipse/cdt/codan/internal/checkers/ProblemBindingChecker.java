@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010, 2013 Marc-Andre Laperle and others.
+ * Copyright (c) 2010, 2014 Marc-Andre Laperle and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,6 +35,7 @@ import org.eclipse.cdt.core.dom.ast.IBinding;
 import org.eclipse.cdt.core.dom.ast.IFunctionType;
 import org.eclipse.cdt.core.dom.ast.IProblemBinding;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTDeclarator;
+import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTQualifiedName;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPASTTemplateId;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPClassType;
@@ -42,6 +43,7 @@ import org.eclipse.cdt.core.dom.ast.cpp.ICPPFunction;
 import org.eclipse.cdt.core.dom.ast.cpp.ICPPMethod;
 import org.eclipse.cdt.core.parser.util.CharArrayUtils;
 import org.eclipse.cdt.internal.core.dom.parser.ASTQueries;
+import org.eclipse.cdt.internal.core.dom.parser.cpp.ClassTypeHelper;
 
 public class ProblemBindingChecker extends AbstractIndexAstChecker {
 	public static String ERR_ID_OverloadProblem = "org.eclipse.cdt.codan.internal.checkers.OverloadProblem"; //$NON-NLS-1$
@@ -245,6 +247,9 @@ public class ProblemBindingChecker extends AbstractIndexAstChecker {
 			}
 		} else if (parentNode instanceof ICPPASTDeclarator && name instanceof IASTImplicitName) {
 			return true;
+		} else if (parentNode instanceof ICPPASTLiteralExpression && name instanceof IASTImplicitName) {
+			// Implicit name for user-defined literal operator.
+			return true;
 		}
 		return false;
 	}
@@ -277,7 +282,7 @@ public class ProblemBindingChecker extends AbstractIndexAstChecker {
 				}
 			} else if (candidateBinding instanceof ICPPClassType) {
 				ICPPClassType classType = (ICPPClassType) candidateBinding;
-				for (ICPPFunction constructor : classType.getConstructors()) {
+				for (ICPPFunction constructor : ClassTypeHelper.getConstructors(classType, problemBinding.getASTNode())) {
 					String signature = getFunctionSignature(constructor);
 					if (!signature.equals(lastSignature)) {
 						candidatesString += signature + "\n"; //$NON-NLS-1$
