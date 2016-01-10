@@ -434,7 +434,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 					commandLine, 
 					LaunchUtils.getLaunchEnvironment(fLaunchConfiguration),
 					new File(getGDBWorkingDirectory().toOSString()),
-					new PTY(Mode.TERMINAL));
+					new PTY(Mode.TERMINAL)); //TODO The TERMINAL setting breaks older GDBs
 		} catch (IOException e) {
             String message = "Error while launching command: " + StringUtil.join(commandLine, " "); //$NON-NLS-1$ //$NON-NLS-2$
             throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, message, e));
@@ -671,7 +671,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     String line;
                     while ((line = inputReader.readLine()) != null) {
                         line = line.trim();
-                        if (line.endsWith("(gdb)")) { //$NON-NLS-1$
+                        if (line.indexOf("(gdb)") != -1) { //$NON-NLS-1$
                         	success = true;
                             break;
                         }

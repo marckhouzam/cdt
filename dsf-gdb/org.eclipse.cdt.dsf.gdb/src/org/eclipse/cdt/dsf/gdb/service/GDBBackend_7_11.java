@@ -152,21 +152,15 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				// the FinalLaunchSequence to make it easier to customize.
 				+ " --nx" //$NON-NLS-1$
 				// Start with -q option to avoid extra output which may trigger pagination
-				// We must do this because the version is output before we can turn off pagination.
-				// This is important because if pagination is triggered at this time, we won't
-				// be able to send the command to start the MI channel.
+				// This is important because if pagination is triggered on the version
+				// printout, we won't be able to send the command to start the MI channel.
 				+ " -q" //$NON-NLS-1$
-				// Now turn off pagination then print the version for the user to get the familiar
-				// startup printout, then turn pagination on again for the rest of the session
+				// Now trigger the new console towards our PTY.
 				+ " -ex" //$NON-NLS-1$
-				+ " set\\ pagination\\ off" //$NON-NLS-1$ 
+				+ " new-console\\ " + fPty.getSlaveName() //$NON-NLS-1$
+				// Now print the version so the user gets that familiar output		
 				+ " -ex" //$NON-NLS-1$
-				+ " show\\ version"  //$NON-NLS-1$ 
-				+ " -ex" //$NON-NLS-1$
-				+ " set\\ pagination\\ on"  //$NON-NLS-1$ 
-				// Finally, trigger the new console towards our PTY.
-				+ " -ex" //$NON-NLS-1$
-				+ " new-console\\ " + fPty.getSlaveName(); //$NON-NLS-1$ 
+				+ " show\\ version";  //$NON-NLS-1$ 
 
 		// Parse to properly handle spaces and such things (bug 458499)
 		return CommandLineUtil.argumentsToArray(cmd);
