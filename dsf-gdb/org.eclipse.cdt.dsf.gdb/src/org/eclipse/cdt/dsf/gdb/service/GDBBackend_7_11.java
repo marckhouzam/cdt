@@ -77,7 +77,7 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	private class CreatePty extends InitializationShutdownStep {
 		CreatePty(Direction direction) { super(direction); }
 		@Override
-		public void initialize(final RequestMonitor requestMonitor) {
+		public void initialize(RequestMonitor requestMonitor) {
 			doCreatePtyStep(requestMonitor);
 		}
 
@@ -111,9 +111,9 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	
 	@Override
 	protected void doRegisterStep(RequestMonitor requestMonitor) {
-		super.doRegisterStep(requestMonitor);
 		register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
 				 new Hashtable<String,String>());
+		super.doRegisterStep(requestMonitor);
 	}
 	
 	@Override
