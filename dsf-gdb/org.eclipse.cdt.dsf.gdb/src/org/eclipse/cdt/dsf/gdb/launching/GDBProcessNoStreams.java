@@ -7,11 +7,12 @@
  *******************************************************************************/
 package org.eclipse.cdt.dsf.gdb.launching;
 
+import java.io.IOException;
 import java.util.Map;
 
 import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IStreamMonitor;
 import org.eclipse.debug.core.model.IStreamsProxy;
-import org.eclipse.debug.internal.core.NullStreamsProxy;
 
 /**
  * @since 5.0
@@ -30,7 +31,23 @@ public class GDBProcessNoStreams extends GDBProcess {
 
 	@Override
 	protected IStreamsProxy createStreamsProxy() {
-        return new NullStreamsProxy(getSystemProcess());
+        return new NoStreamsProxy();
 	}
 
+	class NoStreamsProxy implements IStreamsProxy {
+
+		@Override
+		public IStreamMonitor getErrorStreamMonitor() {
+			return null;
+		}
+
+		@Override
+		public IStreamMonitor getOutputStreamMonitor() {
+			return null;
+		}
+
+		@Override
+		public void write(String input) throws IOException {			
+		}
+	}
 }
