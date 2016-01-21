@@ -20,7 +20,6 @@ import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
 import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
-import org.eclipse.cdt.utils.CommandLineUtil;
 import org.eclipse.cdt.utils.pty.PTY;
 import org.eclipse.debug.core.ILaunchConfiguration;
 
@@ -29,10 +28,10 @@ import org.eclipse.debug.core.ILaunchConfiguration;
  * full GDB console support.  It achieves this by launching GDB in CLI mode
  * in a special console widget and then connecting to it by telling GDB to
  * open a new MI console.  The rest of the DSF-GDB support then stays the same.
- * 
+ *
  * If we are unable to create a PTY, then we revert to the previous behavior of
  * the base class.
- * 
+ *
  * @since 5.0
  */
 public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsole {
@@ -103,19 +102,19 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		}
 		rm.done();
 	}
-	
+
 	protected void undoCreatePtyStep(RequestMonitor rm) {
 		fPty = null;
 		rm.done();
 	}
-	
+
 	@Override
 	protected void doRegisterStep(RequestMonitor requestMonitor) {
-		register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
+		register(new String[]{ IGDBBackendWithConsole.class.getName() },
 				 new Hashtable<String,String>());
 		super.doRegisterStep(requestMonitor);
 	}
-	
+
 	@Override
 	public OutputStream getMIOutputStream() {
 		if (fPty == null) {
@@ -144,25 +143,33 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	public void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm) {
 		rm.done(true);
 	}
-	
-	@Override
-	protected String[] getGDBCommandLineArray() {
-		String cmd =  getGDBPath().toOSString()
-				// Don't read the gdbinit file here. It is read explicitly in
-				// the FinalLaunchSequence to make it easier to customize.
-				+ " --nx" //$NON-NLS-1$
+
+	protected String[] getGDBCommandLineArray2() {
+		// Start from the original command line method which
+		// could have been overridden, and add what we need
+		// to convert it to a command that will launch in CLI and MI mode
+		String[] originalCommandLine = getGDBCommandLineArray();
+
+		String[] extraArguments = new String[] {
 				// Start with -q option to avoid extra output which may trigger pagination
 				// This is important because if pagination is triggered on the version
 				// printout, we won't be able to send the command to start the MI channel.
-				+ " -q" //$NON-NLS-1$
+				"-q", //$NON-NLS-1$
+				// Force a CLI console as the original command
+				// probably specified "-i mi"
+				"-i console", //$NON-NLS-1$
 				// Now trigger the new console towards our PTY.
-				+ " -ex" //$NON-NLS-1$
-				+ " new-console\\ " + fPty.getSlaveName() //$NON-NLS-1$
-				// Now print the version so the user gets that familiar output		
-				+ " -ex" //$NON-NLS-1$
-				+ " show\\ version";  //$NON-NLS-1$ 
+				"-ex new-console " + fPty.getSlaveName(), //$NON-NLS-1$
+				// Now print the version so the user gets that familiar output
+				"-ex show version"  //$NON-NLS-1$
+		};
 
-		// Parse to properly handle spaces and such things (bug 458499)
-		return CommandLineUtil.argumentsToArray(cmd);
+		int oriLength = originalCommandLine.length;
+		int extraLength = extraArguments.length;
+		String[] newCommandLine = new String[oriLength+extraLength];
+		System.arraycopy(originalCommandLine, 0, newCommandLine, 0, oriLength);
+		System.arraycopy(extraArguments, 0, newCommandLine, oriLength, extraLength);
+
+		return newCommandLine;
 	}
 }
