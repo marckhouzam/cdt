@@ -28,10 +28,10 @@ import org.eclipse.debug.core.ILaunchConfiguration;
  * full GDB console support.  It achieves this by launching GDB in CLI mode
  * in a special console widget and then connecting to it by telling GDB to
  * open a new MI console.  The rest of the DSF-GDB support then stays the same.
- *
+ * 
  * If we are unable to create a PTY, then we revert to the previous behavior of
  * the base class.
- *
+ * 
  * @since 5.0
  */
 public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsole {
@@ -102,19 +102,19 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 		}
 		rm.done();
 	}
-
+	
 	protected void undoCreatePtyStep(RequestMonitor rm) {
 		fPty = null;
 		rm.done();
 	}
-
+	
 	@Override
 	protected void doRegisterStep(RequestMonitor requestMonitor) {
-		register(new String[]{ IGDBBackendWithConsole.class.getName() },
+		register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
 				 new Hashtable<String,String>());
 		super.doRegisterStep(requestMonitor);
 	}
-
+	
 	@Override
 	public OutputStream getMIOutputStream() {
 		if (fPty == null) {
@@ -143,12 +143,14 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 	public void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm) {
 		rm.done(true);
 	}
-
-	protected String[] getGDBCommandLineArray2() {
+	
+	@Override
+	protected String[] getGDBCommandLine() {
 		// Start from the original command line method which
 		// could have been overridden, and add what we need
-		// to convert it to a command that will launch in CLI and MI mode
-		String[] originalCommandLine = getGDBCommandLineArray();
+		// to convert it to a command that will launch in CLI mode
+		// then trigger the MI console
+		String[] originalCommandLine = super.getGDBCommandLine();
 
 		String[] extraArguments = new String[] {
 				// Start with -q option to avoid extra output which may trigger pagination
@@ -157,11 +159,11 @@ public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsol
 				"-q", //$NON-NLS-1$
 				// Force a CLI console as the original command
 				// probably specified "-i mi"
-				"-i console", //$NON-NLS-1$
+				"-interpreter","console", //$NON-NLS-1$ //$NON-NLS-2$
 				// Now trigger the new console towards our PTY.
-				"-ex new-console " + fPty.getSlaveName(), //$NON-NLS-1$
+				"-ex","new-console " + fPty.getSlaveName(), //$NON-NLS-1$ //$NON-NLS-2$
 				// Now print the version so the user gets that familiar output
-				"-ex show version"  //$NON-NLS-1$
+				"-ex","show version"  //$NON-NLS-1$ //$NON-NLS-2$
 		};
 
 		int oriLength = originalCommandLine.length;

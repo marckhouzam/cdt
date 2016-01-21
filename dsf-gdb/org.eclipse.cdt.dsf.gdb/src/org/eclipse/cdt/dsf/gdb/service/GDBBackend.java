@@ -4,7 +4,7 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
+ * 
  * Contributors:
  *     Nokia              - initial API and implementation with some code moved from GDBControl.
  *     Wind River System
@@ -73,18 +73,18 @@ import org.eclipse.debug.core.ILaunchManager;
 import org.osgi.framework.BundleContext;
 
 /**
- * Implementation of {@link IGDBBackend} for the common case where GDB is launched
+ * Implementation of {@link IGDBBackend} for the common case where GDB is launched 
  * in local file system on host PC where Eclipse runs. This also manages some GDB parameters
  * from a given launch configuration.<br>
- * <br>
+ * <br> 
  * You can subclass for you special needs.
- *
+ * 
  * @since 1.1
  */
 public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBackend2 {
-
+	
 	private final ILaunchConfiguration fLaunchConfiguration;
-
+	
 	/*
 	 * Parameters for launching GDB.
 	 */
@@ -93,7 +93,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	private String fGDBInitFile;
 	private List<String> fSharedLibPaths;
 	private String fProgramArguments;
-
+	
 	private Properties fEnvVariables;
 	private SessionType fSessionType;
     private Boolean fAttach;
@@ -102,9 +102,9 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	/**
      * Unique ID of this service instance.
      */
-	private final String fBackendId;
+	private final String fBackendId; 
     private static int fgInstanceCounter = 0;
-
+	
 	/*
      * Service state parameters.
      */
@@ -112,7 +112,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     private Process fProcess;
     private int fGDBExitValue;
     private int fGDBLaunchTimeout = 30;
-
+    
     /**
      * A Job that will set a failed status
      * in the proper request monitor, if the interrupt
@@ -120,12 +120,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
      */
     private MonitorInterruptJob fInterruptFailedJob;
 
-
+    
 	public GDBBackend(DsfSession session, ILaunchConfiguration lc) {
 		super(session);
 		fBackendId = "gdb[" +Integer.toString(fgInstanceCounter++) + "]";  //$NON-NLS-1$//$NON-NLS-2$
 		fLaunchConfiguration = lc;
-
+		
 		try {
 			// Don't call verifyCProject, because the JUnit tests are not setting a project
 			ICProject cproject = LaunchUtils.getCProject(lc);
@@ -134,7 +134,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 			fProgramPath = new Path(""); //$NON-NLS-1$
 		}
 	}
-
+	
     @Override
     public void initialize(final RequestMonitor requestMonitor) {
         super.initialize(new ImmediateRequestMonitor(requestMonitor) {
@@ -148,7 +148,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     private void doInitialize(final RequestMonitor requestMonitor) {
         getExecutor().execute(getStartupSequence(requestMonitor));
     }
-
+    
 	/** @since 5.0 */
 	protected Sequence getStartupSequence(final RequestMonitor requestMonitor) {
         final Sequence.Step[] initializeSteps = new Sequence.Step[] {
@@ -171,7 +171,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
         	}
         }));
     }
-
+    
 	/** @since 5.0 */
     protected Sequence getShutdownSequence(RequestMonitor requestMonitor) {
         final Sequence.Step[] shutdownSteps = new Sequence.Step[] {
@@ -179,36 +179,31 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                 new MonitorJobStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
                 new GDBProcessStep(InitializationShutdownStep.Direction.SHUTTING_DOWN),
             };
-
+        
         return new Sequence(getExecutor(), requestMonitor) {
             @Override public Step[] getSteps() { return shutdownSteps; }
         };
-    }
+    }        
 
-
+    
 	/** @since 4.0 */
     protected IPath getGDBPath() {
         return LaunchUtils.getGDBPath(fLaunchConfiguration);
     }
 
 	/**
-	 * @since 5.0
-	 */
-	protected String[] getGDBCommandLineArray2() {
-		return getGDBCommandLineArray();
-	}
-
-	/**
 	 * Options for GDB process.
 	 * Returns the GDB command and its arguments as an array.
 	 * Allow subclass to override.
 	 * @since 4.6
+	 * @deprecated Replace by getGDBCommandLine()
 	 */
+    @Deprecated
 	protected String[] getGDBCommandLineArray() {
 		// The goal here is to keep options to an absolute minimum.
 		// All configuration should be done in the final launch sequence
 		// to allow for more flexibility.
-
+		
 		String cmd = getGDBPath().toOSString() +
 				     " --interpreter" + //$NON-NLS-1$
 				     // We currently work with MI version 2. Don't use just 'mi' because it
@@ -217,9 +212,36 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 				     // Don't read the gdbinit file here. It is read explicitly in
 				     // the LaunchSequence to make it easier to customize.
 				     " --nx"; //$NON-NLS-1$
-
+		
         // Parse to properly handle spaces and such things (bug 458499)
 		return CommandLineUtil.argumentsToArray(cmd);
+	}
+
+	/**
+	 * Returns the GDB command and its arguments as an array.
+	 * Allow subclass to override.
+	 * @since 5.0
+	 */
+    // This method replace getGDBCommandLineArray() because we need
+    // to override it with GDB 7.11 even if extenders have overridden
+    // getGDBCommandLineArray().
+    // Here is the scenario:
+    //   An extender has overridden getGDBCommandLineArray() to launch
+    //   GDB in MI mode but with extra parameters.  Once GDBBackend_7_11
+    //   is released, the extender may likely point their extention to
+    //   GDBBackend_7_11 instead of GDBBackend (which will even happen
+    //   automatically if the extender extends GDBBackend_HEAD).
+    //   In such a case, they would override the changes in 
+    //   GDBBackend_7_11.getGDBCommandLineArray() and the debug session
+    //   is likely to fail.
+    //
+    //   By using getGDBCommandLine(), an extender will not override it
+    //   without noticing (as it didn't exist before).  Then we can call
+    //   the overridden getGDBCommandLineArray() and work with that to
+    //   make it work with the new logic of GDBBackend_7_11
+	protected String[] getGDBCommandLine() {
+		// Call the old method in case it was overridden
+		return getGDBCommandLineArray();
 	}
 
 	@Override
@@ -231,7 +253,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 
 			fGDBInitFile = fLaunchConfiguration.getAttribute(IGDBLaunchConfigurationConstants.ATTR_GDB_INIT, defaultGdbInit);
 		}
-
+		
 		return fGDBInitFile;
 	}
 
@@ -240,12 +262,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 		if (fGDBWorkingDirectory == null) {
 
 			// First try to use the user-specified working directory for the debugged program.
-			// This is fine only with local debug.
+			// This is fine only with local debug. 
 			// For remote debug, the working dir of the debugged program will be on remote device
 			// and hence not applicable. In such case we may just use debugged program path on host
 			// as the working dir for GDB.
 			// However, we cannot find a standard/common way to distinguish remote debug from local
-			// debug. For instance, a local debug may also use gdbserver+gdb. So it's up to each
+			// debug. For instance, a local debug may also use gdbserver+gdb. So it's up to each 
 			// debugger implementation to make the distinction.
 			//
 			IPath path = null;
@@ -263,18 +285,18 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     			if (path.isAbsolute()) {
     				File dir = new File(path.toPortableString());
     				if (! dir.isDirectory())
-        				path = null;
+        				path = null; 
     			} else {
     				IResource res = ResourcesPlugin.getWorkspace().getRoot().findMember(path);
     				if (res instanceof IContainer && res.exists()) {
     					path = res.getLocation();
     				}
-    				else
+    				else 
     					// Relative but not found in workspace.
-    					path = null;
+    					path = null; 
     			}
     		}
-
+       		
     		if (path == null) {
     			// default working dir is the project if this config has a project
     			ICProject cp = LaunchUtils.getCProject(fLaunchConfiguration);
@@ -285,7 +307,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     			else {
     				// no meaningful value found. Just return null.
     			}
-    		}
+    		} 
 
     		fGDBWorkingDirectory = path;
 		}
@@ -304,7 +326,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 				fProgramArguments = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(fProgramArguments);
 			}
 		}
-
+		
 		return fProgramArguments;
 	}
 
@@ -316,10 +338,10 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	@Override
 	public List<String> getSharedLibraryPaths() throws CoreException {
 		if (fSharedLibPaths == null) {
-			fSharedLibPaths = fLaunchConfiguration.getAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_SOLIB_PATH,
+			fSharedLibPaths = fLaunchConfiguration.getAttribute(IGDBLaunchConfigurationConstants.ATTR_DEBUGGER_SOLIB_PATH, 
 																new ArrayList<String>(0));
 		}
-
+		
 		return fSharedLibPaths;
 	}
 
@@ -328,13 +350,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	public Properties getEnvironmentVariables() throws CoreException {
 		if (fEnvVariables == null) {
 			fEnvVariables = new Properties();
-
+			
 			// if the attribute ATTR_APPEND_ENVIRONMENT_VARIABLES is set,
 			// the LaunchManager will return both the new variables and the existing ones.
 			// That would force us to delete all the variables in GDB, and then re-create then all
 			// that is not very efficient.  So, let's fool the LaunchManager into returning just the
 			// list of new variables.
-
+			
 			boolean append = fLaunchConfiguration.getAttribute(ILaunchManager.ATTR_APPEND_ENVIRONMENT_VARIABLES, true);
 
 			String[] properties;
@@ -347,11 +369,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 				// We're getting rid of the environment anyway, so this call will only yield the new variables.
 				properties = DebugPlugin.getDefault().getLaunchManager().getEnvironment(fLaunchConfiguration);
 			}
-
+			
 			if (properties == null) {
 				properties = new String[0];
 			}
-
+			
 			for (String property : properties) {
 				int idx = property.indexOf('=');
 				if (idx != -1) {
@@ -363,16 +385,16 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 				}
 			}
 		}
-
+		
 		return fEnvVariables;
 	}
-
+	
 	/** @since 3.0 */
 	@Override
 	public boolean getClearEnvironment() throws CoreException {
 		return !fLaunchConfiguration.getAttribute(ILaunchManager.ATTR_APPEND_ENVIRONMENT_VARIABLES, true);
 	}
-
+	
 	/** @since 3.0 */
 	@Override
 	public boolean getUpdateThreadListOnSuspend() throws CoreException {
@@ -392,7 +414,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 		try {
 			// TODO handle case where PTY not supported
 			proc = ProcessFactory.getFactory().exec(
-					commandLine,
+					commandLine, 
 					LaunchUtils.getLaunchEnvironment(fLaunchConfiguration),
 					new File(getGDBWorkingDirectory().toOSString()),
 					new PTY(Mode.TERMINAL)); //TODO The TERMINAL setting breaks older GDBs
@@ -400,19 +422,19 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             String message = "Error while launching command: " + StringUtil.join(commandLine, " "); //$NON-NLS-1$ //$NON-NLS-2$
             throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, -1, message, e));
 		}
-
+		
 		return proc;
 	}
 
-    public Process getProcess() {
-        return fProcess;
+    public Process getProcess() { 
+        return fProcess; 
     }
-
+    
 	@Override
     public OutputStream getMIOutputStream() {
         return fProcess.getOutputStream();
     };
-
+    
 	@Override
     public InputStream getMIInputStream() {
         return fProcess.getInputStream();
@@ -433,13 +455,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     public void interrupt() {
         if (fProcess instanceof Spawner) {
             Spawner gdbSpawner = (Spawner) fProcess;
-
+            
 			// Cygwin gdb 6.8 is capricious when it comes to interrupting the
 			// target. The same logic here will work with MinGW, though. And on
 			// linux it's irrelevant since interruptCTRLC()==interrupt(). So,
 			// one odd size fits all.
 			// See https://bugs.eclipse.org/bugs/show_bug.cgi?id=304096#c54
-            if (getSessionType() == SessionType.REMOTE) {
+            if (getSessionType() == SessionType.REMOTE) { 
                	gdbSpawner.interrupt();
             }
             else {
@@ -460,8 +482,8 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 			// target. The same logic here will work with MinGW, though. And on
 			// linux it's irrelevant since interruptCTRLC()==interrupt(). So,
 			// one odd size fits all.
-			// See https://bugs.eclipse.org/bugs/show_bug.cgi?id=304096#c54
-            if (getSessionType() == SessionType.REMOTE) {
+			// See https://bugs.eclipse.org/bugs/show_bug.cgi?id=304096#c54            
+            if (getSessionType() == SessionType.REMOTE) { 
                	gdbSpawner.interrupt();
             }
             else {
@@ -494,8 +516,8 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     	// Don't close the streams ourselves as it may be too early.
     	// Wait for the actual user of the streams to close it.
     	// Bug 339379
-
-    	// destroy() should be supported even if it's not spawner.
+    	
+    	// destroy() should be supported even if it's not spawner. 
     	if (getState() == State.STARTED) {
     		fProcess.destroy();
     	}
@@ -505,12 +527,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     public State getState() {
     	return fBackendState;
     }
-
+    
 	@Override
-    public int getExitCode() {
+    public int getExitCode() { 
         return fGDBExitValue;
     }
-
+    
 	@Override
     public 	SessionType getSessionType() {
         if (fSessionType == null) {
@@ -534,12 +556,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 
 	protected class GDBProcessStep extends InitializationShutdownStep {
         GDBProcessStep(Direction direction) { super(direction); }
-
+        
         @Override
         public void initialize(final RequestMonitor requestMonitor) {
         	doGDBProcessStep(requestMonitor);
         }
-
+        
         @Override
         protected void shutdown(final RequestMonitor requestMonitor) {
         	undoGDBProcessStep(requestMonitor);
@@ -559,7 +581,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
         	undoMonitorJobStep(requestMonitor);
         }
     }
-
+    
     protected class RegisterStep extends InitializationShutdownStep {
         RegisterStep(Direction direction) { super(direction); }
         @Override
@@ -579,7 +601,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             boolean fLaunched = false;
             boolean fTimedOut = false;
         }
-        final GDBLaunchMonitor fGDBLaunchMonitor = new GDBLaunchMonitor();
+        final GDBLaunchMonitor fGDBLaunchMonitor = new GDBLaunchMonitor(); 
 
         final RequestMonitor gdbLaunchRequestMonitor = new RequestMonitor(getExecutor(), requestMonitor) {
             @Override
@@ -593,7 +615,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                 }
             }
         };
-
+        
         final Job startGdbJob = new Job("Start GDB Process Job") { //$NON-NLS-1$
             {
                 setSystem(true);
@@ -606,10 +628,9 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     gdbLaunchRequestMonitor.done();
                     return Status.OK_STATUS;
                 }
-
-                try {
-                    fProcess = launchGDBProcess(getGDBCommandLineArray());
-                    
+                
+                try {                        
+                    fProcess = launchGDBProcess(getGDBCommandLine());
                 	// Need to do this on the executor for thread-safety
                 	getExecutor().submit(
                             new DsfRunnable() {
@@ -623,7 +644,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     gdbLaunchRequestMonitor.done();
                     return Status.OK_STATUS;
                 }
-
+                
                 BufferedReader inputReader = null;
                 BufferedReader errorReader = null;
                 boolean success = false;
@@ -638,7 +659,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                             break;
                         }
                     }
-
+                    
                     // Failed to read initial prompt, check for error
                     if (!success) {
                     	errorReader = new BufferedReader(new InputStreamReader(getMIErrorStream()));
@@ -670,14 +691,14 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 						}
                 	}
                 }
-
+                
                 gdbLaunchRequestMonitor.done();
                 return Status.OK_STATUS;
             }
         };
         startGdbJob.schedule();
-
-        getExecutor().schedule(new Runnable() {
+            
+        getExecutor().schedule(new Runnable() { 
         	@Override
             public void run() {
                 // Only process the event if we have not finished yet (hit the breakpoint).
@@ -691,7 +712,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                     requestMonitor.done();
                 }
             }},
-            fGDBLaunchTimeout, TimeUnit.SECONDS);
+            fGDBLaunchTimeout, TimeUnit.SECONDS);		
 	}
 
 	/** @since 5.0 */
@@ -707,7 +728,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             {
                 setSystem(true);
             }
-
+            
             @Override
             protected IStatus run(IProgressMonitor monitor) {
             	try {
@@ -717,16 +738,16 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 					getExecutor().submit(
 					        new DsfRunnable() {
 					        	@Override
-					            public void run() {
+					            public void run() { 
 					            	destroy();
-
+					            	
 					            	if (fMonitorJob.fMonitorExited) {
 					            		// Now that we have destroyed the process,
 					            		// and that the monitoring thread was killed,
 					            		// we need to set our state and send the event
-					            		fBackendState = State.TERMINATED;
+					            		fBackendState = State.TERMINATED; 
 					            		getSession().dispatchEvent(
-					            				new BackendStateChangedEvent(getSession().getId(), getId(), State.TERMINATED),
+					            				new BackendStateChangedEvent(getSession().getId(), getId(), State.TERMINATED), 
 					            				getProperties());
 					            	}
 					            }
@@ -734,13 +755,13 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 				} catch (InterruptedException e1) {
 				} catch (ExecutionException e1) {
 				}
-
+    
                 int attempts = 0;
                 while (attempts < 10) {
                     try {
                         // Don't know if we really need the exit value... but what the heck.
                         fGDBExitValue = fProcess.exitValue(); // throws exception if process not exited
-
+    
                         requestMonitor.done();
                         return Status.OK_STATUS;
                     } catch (IllegalThreadStateException ie) {
@@ -758,11 +779,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             }
         }.schedule();
 	}
-
+	
 	/** @since 5.0 */
     protected void doMonitorJobStep(final RequestMonitor requestMonitor) {
         fMonitorJob = new MonitorJob(
-            fProcess,
+            fProcess, 
             new DsfRunnable() {
             	@Override
                 public void run() {
@@ -771,7 +792,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             });
         fMonitorJob.schedule();
     }
-
+    
 	/** @since 5.0 */
     protected void undoMonitorJobStep(RequestMonitor requestMonitor) {
     	if (fMonitorJob != null) {
@@ -782,11 +803,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 
 	/** @since 5.0 */
     protected void doRegisterStep(RequestMonitor requestMonitor) {
-        register(new String[]{ IMIBackend.class.getName(),
+        register(new String[]{ IMIBackend.class.getName(), 
                 		       IMIBackend2.class.getName(),
-                               IGDBBackend.class.getName() },
+                               IGDBBackend.class.getName() }, 
                  new Hashtable<String,String>());
-
+            
         getSession().addServiceEventListener(GDBBackend.this, null);
 
         /*
@@ -794,12 +815,12 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
          * the GDBControlInitializedDMEvent that's used to indicate that GDB
          * back end is ready for MI commands. But we still fire the event as
          * it does no harm and may be needed sometime.... 09/29/2008
-         *
+         * 
          * We send the event in the register step because that is when
          * other services have access to it.
          */
         getSession().dispatchEvent(
-        		new BackendStateChangedEvent(getSession().getId(), getId(), State.STARTED),
+        		new BackendStateChangedEvent(getSession().getId(), getId(), State.STARTED), 
         		getProperties());
 
         requestMonitor.done();
@@ -811,7 +832,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
         getSession().removeServiceEventListener(GDBBackend.this);
         requestMonitor.done();
     }
-
+    
     /**
      * Monitors a system process, waiting for it to terminate, and
      * then notifies the associated runtime process.
@@ -833,11 +854,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                 	getExecutor().submit(
                             new DsfRunnable() {
                             	@Override
-                                public void run() {
+                                public void run() { 
                                 	destroy();
-                                	fBackendState = State.TERMINATED;
+                                	fBackendState = State.TERMINATED; 
                                 	getSession().dispatchEvent(
-                                			new BackendStateChangedEvent(getSession().getId(), getId(), State.TERMINATED),
+                                			new BackendStateChangedEvent(getSession().getId(), getId(), State.TERMINATED), 
                                 			getProperties());
                                 }
                             });
@@ -853,7 +874,7 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 
         MonitorJob(Process process, DsfRunnable monitorStarted) {
             super("GDB process monitor job.");  //$NON-NLS-1$
-            fMonProcess = process;
+            fMonProcess = process; 
             fMonitorStarted = monitorStarted;
             setSystem(true);
         }
@@ -865,23 +886,23 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
                 }
             }
         }
-    }
+    }   
 
     /**
-     * Stores the request monitor that must be dealt with for
+     * Stores the request monitor that must be dealt with for 
      * the result of the interrupt operation.  If the interrupt
      * successfully suspends the backend, the request monitor can
      * be retrieved and completed successfully, and then this job
-     * should be canceled.  If this job is not canceled before
-     * the time is up, it will imply the interrupt did not
-     * successfully suspend the backend, and the current job will
+     * should be canceled.  If this job is not canceled before 
+     * the time is up, it will imply the interrupt did not 
+     * successfully suspend the backend, and the current job will 
      * indicate this in the request monitor.
-     *
+     * 
      * The specified timeout is used to indicate how many milliseconds
      * this job should wait for. INTERRUPT_TIMEOUT_DEFAULT indicates
-     * to use the default of 5 seconds.  The default is also use if the
+     * to use the default of 5 seconds.  The default is also use if the 
      * timeout value is 0 or negative.
-     *
+     * 
      * @since 3.0
      */
     protected class MonitorInterruptJob extends Job {
@@ -895,11 +916,11 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
             super("Interrupt monitor job."); //$NON-NLS-1$
             setSystem(true);
             fRequestMonitor = rm;
-
+            
             if (timeout == INTERRUPT_TIMEOUT_DEFAULT || timeout <= 0) {
             	timeout = TIMEOUT_DEFAULT_VALUE; // default of 5 seconds
             }
-
+            
            	schedule(timeout);
         }
 
@@ -927,14 +948,14 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
 	 * when the target stops, in cases where we don't want to views to update.
 	 * For example, if we want to interrupt the target to set a breakpoint, this
 	 * interruption is done silently; we will receive the MI event though.
-	 *
+	 * 
 	 * <p>
 	 * Though we send a SIGINT, we may not specifically get an MISignalEvent.
 	 * Typically we will, but not always, so wait for an MIStoppedEvent. See
 	 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=305178#c21
-	 *
+	 * 
 	 * @since 3.0
-	 *
+	 * 
 	 */
     @DsfServiceEventHandler
     public void eventDispatched(final MIStoppedEvent e) {
