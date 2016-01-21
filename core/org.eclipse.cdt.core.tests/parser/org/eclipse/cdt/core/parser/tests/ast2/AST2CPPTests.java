@@ -1477,6 +1477,16 @@ public class AST2CPPTests extends AST2TestBase {
 	public void _testInheritedTemplateConstructor() throws Exception {
 		parseAndCheckBindings();
 	}
+	
+	//	struct base {};
+	//
+	//	struct derived : public base {
+	//		using base::base;
+	//		base waldo() const;
+	//	};
+	public void testInheritedConstructorShadowingBaseClassName_485383() throws Exception {
+		parseAndCheckBindings();
+	}
 
 	// class A { ~A(); };
 	// class B { ~B(void); };
@@ -10572,6 +10582,19 @@ public class AST2CPPTests extends AST2TestBase {
 		ICPPMethod foo = bh.assertNonProblem("foo");
 		assertTrue(foo.isFinal());
 	}
+	
+	//	struct S {};
+	//	bool b1 = __is_trivially_copyable(S);
+	//	bool b2 = __is_trivially_assignable(S, S&);
+	//	bool b3 = __is_trivially_constructible(S, int, char*);
+	//	// Test that __is_trivially_constructible can take parameter packs
+	//	template <typename... Args>
+	//	struct U {
+	//		static const bool value = __is_trivially_constructible(S, Args...);
+	//	};
+	public void testParsingOfGcc5TypeTraitIntrinsics_485713() throws Exception {
+		parseAndCheckBindings(getAboveComment(), CPP, true /* use GNU extensions */);
+	}
 
 	//	struct S1 {};
 	//	S1 s1;
@@ -10597,6 +10620,33 @@ public class AST2CPPTests extends AST2TestBase {
 	//	    bar(N::A);
 	//	}
 	public void testADLForFunctionObject_388287() throws Exception {
+		parseAndCheckBindings();
+	}
+	
+	//	namespace A {
+	//		template <typename T>
+	//		void foo(T);
+	//	}
+	//
+	//	namespace B {
+	//		template <typename T>
+	//		void foo(T);
+	//		
+	//		struct S {};
+	//	}
+	//
+	//	struct outer : B::S {
+	//		struct waldo {};
+	//		enum E { };
+	//	};
+	//
+	//	using A::foo;
+	//
+	//	int main() {
+	//		foo(outer::waldo{});
+	//		foo(outer::E{});
+	//	}
+	public void testADL_485710() throws Exception {
 		parseAndCheckBindings();
 	}
 

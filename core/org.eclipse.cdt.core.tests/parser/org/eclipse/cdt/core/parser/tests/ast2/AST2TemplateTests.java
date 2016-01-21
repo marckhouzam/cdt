@@ -7792,6 +7792,19 @@ public class AST2TemplateTests extends AST2TestBase {
 	public void testPartialSpecializationForVarargFunctionType_402807() throws Exception {
 		parseAndCheckBindings();
 	}
+	
+	//	template <typename T>
+	//	struct waldo {
+	//		typedef int type;
+	//	};
+	//
+	//	template <typename R>
+	//	struct waldo<R () &>;
+	//
+	//	typedef waldo<int ()>::type Type;
+	public void testPartialSpecializationForRefQualifiedFunctionType_485888() throws Exception {
+		parseAndCheckBindings();
+	}
 
 	//	template <typename>
 	//	struct meta {
@@ -8186,6 +8199,28 @@ public class AST2TemplateTests extends AST2TestBase {
 	//	    s.waldo(0, 0);  // ERROR HERE
 	//	}
 	public void testParameterPackInNestedTemplate_441028() throws Exception {
+		parseAndCheckBindings();
+	}
+
+	//	template <int... Is> struct A {
+	//	  typedef A t;
+	//	};
+	//
+	//	template <class P, int I> struct B;
+	//
+	//	template <int... Is, int I>
+	//	struct B<A<Is...>, I> : A<Is..., I> {};
+	//
+	//	template <typename, typename = void>
+	//	struct prober {};
+	//
+	//	template <typename T>
+	//	struct prober<A<0>, T> {
+	//	  typedef T t;
+	//	};
+	//
+	//	prober<B<A<>, 0>::t>::t g();
+	public void testParameterPack_485806() throws Exception {
 		parseAndCheckBindings();
 	}
 
@@ -8673,6 +8708,32 @@ public class AST2TemplateTests extends AST2TestBase {
 	public void testDependentSpecializationOfFunctionTemplateAsFriend_422505b() throws Exception {
 		BindingAssertionHelper helper = getAssertionHelper();
 		helper.assertNonProblem("waldo<T>", ICPPDeferredFunction.class);
+	}
+	
+	//	template<bool, typename T = void>
+	//	struct enable_if {};
+	//
+	//	template<typename T>
+	//	struct enable_if<true, T> {
+	//	  typedef T type;
+	//	};
+	//
+	//	template <typename T>
+	//	constexpr bool F() {
+	//	  return false;
+	//	}
+	//
+	//	template <typename T>
+	//	typename enable_if<!F<T>(), void>::type waldo(T p); // problem on the return type
+	//
+	//	struct A {};
+	//
+	//	void test() {
+	//	  A a;
+	//	  waldo(a); // problem on waldo
+	//	}
+	public void testDependentFunctionSet_485985() throws Exception {
+		parseAndCheckBindings();
 	}
 
 	//	template <typename>

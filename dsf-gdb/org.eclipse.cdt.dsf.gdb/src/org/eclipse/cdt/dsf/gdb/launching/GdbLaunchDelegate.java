@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2008, 2015 QNX Software Systems and others.
+ * Copyright (c) 2008, 2016 QNX Software Systems and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -37,7 +37,6 @@ import org.eclipse.cdt.dsf.gdb.service.GdbDebugServicesFactory;
 import org.eclipse.cdt.dsf.gdb.service.GdbDebugServicesFactoryNS;
 import org.eclipse.cdt.dsf.gdb.service.SessionType;
 import org.eclipse.cdt.dsf.gdb.service.command.IGDBControl;
-import org.eclipse.cdt.dsf.gdb.service.macos.MacOSGdbDebugServicesFactory;
 import org.eclipse.cdt.dsf.service.DsfServicesTracker;
 import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.cdt.launch.AbstractCLaunchDelegate2;
@@ -67,9 +66,6 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 
     private static final String NON_STOP_FIRST_VERSION = "6.8.50"; //$NON-NLS-1$
     
-    // Can be removed once we remove the deprecated newServiceFactory(String)
-	private boolean fIsNonStopSession = false;
-	
     private static final String TRACING_FIRST_VERSION = "7.1.50"; //$NON-NLS-1$
 	
     private GdbLaunch fGdbLaunch;
@@ -147,9 +143,6 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
         }
     	
         monitor.worked(1);
-
-        // Must set this here for users that call directly the deprecated newServiceFactory(String)
-        fIsNonStopSession = LaunchUtils.getIsNonStopMode(config);
 
         String gdbVersion = getGDBVersion(config);
         
@@ -457,11 +450,6 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 	 * @since 4.0
 	 */
 	protected boolean isNonStopSupportedInGdbVersion(String version) {
-		if (version.contains(LaunchUtils.MACOS_GDB_MARKER)) {
-			// Mac OS's GDB does not support Non-Stop
-			return false;
-		}
-		
 		if (NON_STOP_FIRST_VERSION.compareTo(version) <= 0) {
 			return true;
 		}
@@ -474,11 +462,6 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 	 * @since 4.0
 	 */
 	protected boolean isPostMortemTracingSupportedInGdbVersion(String version) {
-		if (version.contains(LaunchUtils.MACOS_GDB_MARKER)) {
-			// Mac OS's GDB does not support post-mortem tracing
-			return false;
-		}
-		
 		if (TRACING_FIRST_VERSION.compareTo(version) <= 0
 			// This feature will be available for GDB 7.2. But until that GDB is itself available
 			// there is a pre-release that has a version of 6.8.50.20090414
@@ -489,37 +472,16 @@ public class GdbLaunchDelegate extends AbstractCLaunchDelegate2
 	}
 
 	/**
-	 * @deprecated Replaced by newServiceFactory(ILaunchConfiguration, String)
-	 */
-	@Deprecated
-	protected IDsfDebugServicesFactory newServiceFactory(String version) {
-
-		if (fIsNonStopSession && isNonStopSupportedInGdbVersion(version)) {
-			return new GdbDebugServicesFactoryNS(version);
-		}
-		
-		if (version.contains(LaunchUtils.MACOS_GDB_MARKER)) {
-			// The version string at this point should look like
-			// 6.3.50-20050815APPLE1346, we extract the gdb version and apple version
-			String versions [] = version.split(LaunchUtils.MACOS_GDB_MARKER);
-			if (versions.length == 2) {
-				return new MacOSGdbDebugServicesFactory(versions[0], versions[1]);
-			}
-		}
-
-		return new GdbDebugServicesFactory(version);
-	}
-
-	/**
 	 * Method called to create the services factory for this debug session.
 	 * A subclass can override this method and provide its own ServiceFactory.
 	 * @since 4.1
 	 */
 	protected IDsfDebugServicesFactory newServiceFactory(ILaunchConfiguration config, String version) {
-		// Call the deprecated one for now to avoid code duplication.
-		// Once we get rid of the deprecated one, we can also get rid of fIsNonStopSession
-		fIsNonStopSession = LaunchUtils.getIsNonStopMode(config);
-		return newServiceFactory(version);
+		if (LaunchUtils.getIsNonStopMode(config) && isNonStopSupportedInGdbVersion(version)) {
+			return new GdbDebugServicesFactoryNS(version);
+		}
+		
+		return new GdbDebugServicesFactory(version);
 	}
 
 	@Override
