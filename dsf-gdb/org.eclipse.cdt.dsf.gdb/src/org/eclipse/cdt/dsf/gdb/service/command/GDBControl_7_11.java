@@ -26,8 +26,9 @@ public class GDBControl_7_11 extends GDBControl_7_7 {
     
     @Override
     protected Process createBackendCLIProcess(ICommandControlService commandControl,
-    													 IMIBackend backend) throws IOException {
+    										  IMIBackend backend) throws IOException {
 
+    	// TODO is this safe?
     	if (backend instanceof GDBBackend) {
     		return ((GDBBackend)backend).getProcess();
     	}

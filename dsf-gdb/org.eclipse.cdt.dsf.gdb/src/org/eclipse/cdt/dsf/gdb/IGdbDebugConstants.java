@@ -60,14 +60,6 @@ public interface IGdbDebugConstants {
     public static final String GDB_PROCESS_CREATION_VALUE = PREFIX + "gdbProcess"; //$NON-NLS-1$
 
     /**
-     * Attribute value of PROCESS_TYPE_CREATION_ATTR to be passed to DebugPlugin.newProcess to 
-     * require the creation of an GdbProcess instead of a RuntimeProcess
-     * (which is used by default).
-     * @since 5.0
-     */
-    public static final String GDB_PROCESS_NEW_CREATION_VALUE = PREFIX + "gdbProcessNew"; //$NON-NLS-1$
-
-    /**
      * Attribute key that when set, indicates that the inferior process has properly exited,
      * and its exit value can be used.
 	 * @since 4.2

@@ -15,7 +15,6 @@ import java.util.Map;
 
 import org.eclipse.cdt.dsf.gdb.IGdbDebugConstants;
 import org.eclipse.cdt.dsf.gdb.launching.GDBProcess;
-import org.eclipse.cdt.dsf.gdb.launching.GDBProcessNoStreams;
 import org.eclipse.cdt.dsf.gdb.launching.InferiorRuntimeProcess;
 import org.eclipse.cdt.testsrunner.internal.TestsRunnerPlugin;
 import org.eclipse.cdt.testsrunner.internal.model.TestingSession;
@@ -91,10 +90,6 @@ public class TestingProcessFactory implements IProcessFactory {
 				Object processTypeCreationAttrValue = attributes.get(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR);
 				if (IGdbDebugConstants.GDB_PROCESS_CREATION_VALUE.equals(processTypeCreationAttrValue)) {
 					return new GDBProcess(launch, process, label, attributes);
-				}
-
-				if (IGdbDebugConstants.GDB_PROCESS_NEW_CREATION_VALUE.equals(processTypeCreationAttrValue)) {
-					return new GDBProcessNoStreams(launch, process, label, attributes);
 				}
 	
 				if (IGdbDebugConstants.INFERIOR_PROCESS_CREATION_VALUE.equals(processTypeCreationAttrValue)) {

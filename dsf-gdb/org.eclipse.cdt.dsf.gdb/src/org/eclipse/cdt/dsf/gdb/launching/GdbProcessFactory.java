@@ -33,10 +33,6 @@ public class GdbProcessFactory implements IProcessFactory {
 				return new GDBProcess(launch, process, label, attributes);
 			}
 
-			if (IGdbDebugConstants.GDB_PROCESS_NEW_CREATION_VALUE.equals(attributes.get(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR))) {
-				return new GDBProcessNoStreams(launch, process, label, attributes);
-			}
-
 			if (IGdbDebugConstants.INFERIOR_PROCESS_CREATION_VALUE.equals(attributes.get(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR))) {
 				return new InferiorRuntimeProcess(launch, process, label, attributes);
 			}
