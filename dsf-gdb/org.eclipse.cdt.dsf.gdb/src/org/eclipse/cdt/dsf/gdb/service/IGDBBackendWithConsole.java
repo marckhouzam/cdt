@@ -19,5 +19,6 @@ public interface IGDBBackendWithConsole {
 	 */
 	void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm);
 	
+	//TODO do we need this and the one in IGDBControl?
 	Process getProcess();
 }

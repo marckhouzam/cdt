@@ -20,7 +20,6 @@ public class ConsoleMessages extends NLS {
 	public static String ConsoleMessages_trace_console_terminated;
 	public static String ConsoleMessages_gdb_console_name;
 	public static String ConsoleMessages_gdb_console_job;
-	
 	public static String ConsoleMessages_save_action_tooltip;
 	public static String ConsoleMessages_save_confirm_overwrite_title;
 	public static String ConsoleMessages_save_confirm_overwrite_desc;

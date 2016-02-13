@@ -49,10 +49,9 @@ import org.eclipse.ui.console.IConsoleManager;
  *    This console interacts directly with the GDB process using
  *    the standard GDB CLI interface.
  *    These consoles cannot be enabled/disabled by the user.
- *    However, they are only supported by GDB >= 7.11;
+ *    However, they are only supported by GDB >= 7.12;
  *    to handle this limitation, the console manager will use the DSF Backend
  *    service to establish if it should start a gdb cli console or not.
- *    These consoles apply to {@link GdbLaunch} running GDB >= 7.11
  */
 public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeListener {
 

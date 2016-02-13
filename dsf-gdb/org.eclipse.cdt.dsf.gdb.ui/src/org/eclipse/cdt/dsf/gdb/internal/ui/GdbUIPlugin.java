@@ -45,7 +45,7 @@ public class GdbUIPlugin extends AbstractUIPlugin {
 	
     private static BundleContext fgBundleContext; 
 
-    private static GdbConsoleManager fTracingConsoleManager;
+    private static GdbConsoleManager fGdbConsoleManager;
     
     private static IPreferenceStore fCorePreferenceStore;
     
@@ -65,8 +65,8 @@ public class GdbUIPlugin extends AbstractUIPlugin {
 		super.start(context);
 		plugin = this;
 		
-		fTracingConsoleManager = new GdbConsoleManager();
-		fTracingConsoleManager.startup();
+		fGdbConsoleManager = new GdbConsoleManager();
+		fGdbConsoleManager.startup();
 	}
 
 	/*
@@ -75,7 +75,7 @@ public class GdbUIPlugin extends AbstractUIPlugin {
 	 */
 	@Override
     public void stop(BundleContext context) throws Exception {
-		fTracingConsoleManager.shutdown();
+		fGdbConsoleManager.shutdown();
 
 		disposeAdapterSets();
 		plugin = null;

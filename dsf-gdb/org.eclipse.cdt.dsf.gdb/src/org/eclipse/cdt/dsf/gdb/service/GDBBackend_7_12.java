@@ -15,21 +15,18 @@ import java.util.Hashtable;
 
 import org.eclipse.cdt.dsf.concurrent.DataRequestMonitor;
 import org.eclipse.cdt.dsf.concurrent.RequestMonitor;
-import org.eclipse.cdt.dsf.concurrent.Sequence;
-import org.eclipse.cdt.dsf.concurrent.Sequence.Step;
-import org.eclipse.cdt.dsf.gdb.service.command.GDBControl.InitializationShutdownStep;
 import org.eclipse.cdt.dsf.mi.service.command.LargePipedInputStream;
 import org.eclipse.cdt.dsf.service.DsfSession;
 import org.eclipse.cdt.utils.pty.PTY;
 import org.eclipse.debug.core.ILaunchConfiguration;
 
 /**
- * Implementation of {@link IGDBBackend} using GDB 7.11. This version provides
+ * Implementation of {@link IGDBBackend} using GDB 7.12. This version provides
  * full GDB console support.  It achieves this by launching GDB in CLI mode
- * in a special console widget and then connecting to it by telling GDB to
+ * in a special console widget and then connecting to GDB via MI by telling GDB to
  * open a new MI console.  The rest of the DSF-GDB support then stays the same.
  * 
- * If we are unable to create a PTY, then we revert to the previous behavior of
+ * If we are unable to create a PTY, we then revert to the previous behavior of
  * the base class.
  * 
  * @since 5.0
@@ -41,52 +38,10 @@ public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsol
 
 	public GDBBackend_7_12(DsfSession session, ILaunchConfiguration lc) {
 		super(session, lc);
+		createPty();
 	}
 
-	@Override
-	protected Sequence getStartupSequence(final RequestMonitor requestMonitor) {
-		Sequence originalSequence = super.getStartupSequence(requestMonitor);
-		Step[] originalSteps = originalSequence.getSteps();
-
-		// Add the creation of the pty at the beginning of the startup sequence
-        final Sequence.Step[] newSteps = new Sequence.Step[originalSteps.length+1];
-        System.arraycopy(originalSteps, 0, newSteps, 1, originalSteps.length);
-        newSteps[0] = new CreatePty(InitializationShutdownStep.Direction.INITIALIZING);
-
-        return new Sequence(getExecutor(), requestMonitor) {
-            @Override public Step[] getSteps() { return newSteps; }
-        };
-    }
-
-    @Override
-	protected Sequence getShutdownSequence(RequestMonitor requestMonitor) {
-		Sequence originalSequence = super.getShutdownSequence(requestMonitor);
-		Step[] originalSteps = originalSequence.getSteps();
-
-		// Add the shutdown of the pty at the end of the shutdown sequence
-        final Sequence.Step[] newSteps = new Sequence.Step[originalSteps.length+1];
-        System.arraycopy(originalSteps, 0, newSteps, 0, originalSteps.length);
-        newSteps[newSteps.length-1] = new CreatePty(InitializationShutdownStep.Direction.SHUTTING_DOWN);
-
-        return new Sequence(getExecutor(), requestMonitor) {
-            @Override public Step[] getSteps() { return newSteps; }
-        };
-    }
-
-	private class CreatePty extends InitializationShutdownStep {
-		CreatePty(Direction direction) { super(direction); }
-		@Override
-		public void initialize(RequestMonitor requestMonitor) {
-			doCreatePtyStep(requestMonitor);
-		}
-
-		@Override
-		protected void shutdown(RequestMonitor requestMonitor) {
-			undoCreatePtyStep(requestMonitor);
-		}
-	}
-
-	protected void doCreatePtyStep(RequestMonitor rm) {
+	protected void createPty() {
 		try {
 			fPty = new PTY();
 			fPty.validateSlaveName();
@@ -100,16 +55,13 @@ public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsol
 		} catch (IOException e) {
 			fPty = null;
 		}
-		rm.done();
-	}
-	
-	protected void undoCreatePtyStep(RequestMonitor rm) {
-		fPty = null;
-		rm.done();
 	}
 	
 	@Override
 	protected void doRegisterStep(RequestMonitor requestMonitor) {
+		// Must call this register in the same Executor cycle as the base
+		// class's register call, or else the service will be available
+		// under some but not all of its identifier for a little while.
 		register(new String[]{ IGDBBackendWithConsole.class.getName() }, 
 				 new Hashtable<String,String>());
 		super.doRegisterStep(requestMonitor);
@@ -141,7 +93,9 @@ public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsol
 
 	@Override
 	public void shouldLaunchGdbCli(DataRequestMonitor<Boolean> rm) {
-		rm.done(true);
+		// If we have a PTY, use the new GDB console feature.
+		// TODO make sure this works for Windows and Mac
+		rm.done(fPty != null);
 	}
 	
 	@Override
@@ -150,7 +104,7 @@ public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsol
 		// could have been overridden, and add what we need
 		// to convert it to a command that will launch in CLI mode
 		// then trigger the MI console
-		String[] originalCommandLine = super.getGDBCommandLine();
+		String[] originalCommandLine = super.getGDBCommandLineArray();
 
 		String[] extraArguments = new String[] {
 				// Start with -q option to avoid extra output which may trigger pagination
