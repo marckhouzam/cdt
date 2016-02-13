@@ -19,6 +19,7 @@ import org.eclipse.cdt.dsf.gdb.IGdbDebugPreferenceConstants;
 import org.eclipse.cdt.dsf.gdb.internal.ui.GdbUIPlugin;
 import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
 import org.eclipse.cdt.dsf.gdb.launching.ITracedLaunch;
+import org.eclipse.cdt.dsf.gdb.service.IGDBBackend;
 import org.eclipse.cdt.dsf.gdb.service.IGDBBackendWithConsole;
 import org.eclipse.cdt.dsf.mi.service.IMIBackend;
 import org.eclipse.cdt.dsf.mi.service.IMIBackend.BackendStateChangedEvent;
@@ -206,6 +207,8 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 
 	protected void addCliConsole(ILaunch launch) {
 		// Cli consoles are only added for GdbLaunches
+		// TODO is that too limiting for extenders?
+		// TODO if so fix everywhere in this file
 		if (launch instanceof GdbLaunch) {
 			new GdbCliConsoleCreator((GdbLaunch)launch).init();
 		}
@@ -327,6 +330,7 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 	 * Backend service.
 	 */
 	private class GdbCliConsoleCreator {
+		//TODO check for synchronization
 		private GdbLaunch fLaunch;
 		private DsfSession fSession;
 		private GdbCliEventListener fListener;
@@ -342,14 +346,18 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
 		        	@Override
 		        	public void run() {
 		        		// Look for backend service right away.  It probably 
-		        		// won't be available yet but we must make sure
+		        		// won't be available yet but we must make sure.
+		        		// Look for IGDBBackend and not IGDBBackendWithConsole
+		        		// since older backend services don't implement the latter.
 		            	DsfServicesTracker tracker = new DsfServicesTracker(GdbUIPlugin.getBundleContext(), fSession.getId());
-		            	IGDBBackendWithConsole backend = tracker.getService(IGDBBackendWithConsole.class);
+		            	IGDBBackend backend = tracker.getService(IGDBBackend.class);
 		            	tracker.dispose();
 		            	
 		            	if (backend != null) {
-		            		// Backend service already available!  Let's use it.
-		            		verifyAndCreateCliConsole(backend);
+		            		// Backend service already available!  Let's check if it is of the right type.
+		            		if (backend instanceof IGDBBackendWithConsole) {
+		            			verifyAndCreateCliConsole((IGDBBackendWithConsole)backend);
+		            		} // else no need to create the console 
 		            	} else {
 		            		// Backend service not available yet, let's wait for it to start.
 		            		fListener = new GdbCliEventListener(GdbCliConsoleCreator.this, fSession.getId());
@@ -377,7 +385,7 @@ public class GdbConsoleManager implements ILaunchesListener2, IPropertyChangeLis
     						// Very important to make sure the console view is open or else things will not work
     						ConsolePlugin.getDefault().getConsoleManager().showConsoleView(console);
     					}
-    					// The service said not to start a GdbCliConsole
+    					// else the service said not to start a GdbCliConsole
     				}
     			});
     		}
