@@ -19,8 +19,8 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 /**
  * @since 5.0
  */
-public class GDBControl_7_11 extends GDBControl_7_7 {
-    public GDBControl_7_11(DsfSession session, ILaunchConfiguration config, CommandFactory factory) {
+public class GDBControl_7_12 extends GDBControl_7_7 {
+    public GDBControl_7_12(DsfSession session, ILaunchConfiguration config, CommandFactory factory) {
     	super(session, config, factory);
     }
     

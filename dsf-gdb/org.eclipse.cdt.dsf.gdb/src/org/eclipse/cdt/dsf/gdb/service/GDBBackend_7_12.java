@@ -34,12 +34,12 @@ import org.eclipse.debug.core.ILaunchConfiguration;
  * 
  * @since 5.0
  */
-public class GDBBackend_7_11 extends GDBBackend implements IGDBBackendWithConsole {
+public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsole {
 
 	private PTY fPty;
 	private InputStream fErrorStream;
 
-	public GDBBackend_7_11(DsfSession session, ILaunchConfiguration lc) {
+	public GDBBackend_7_12(DsfSession session, ILaunchConfiguration lc) {
 		super(session, lc);
 	}
 

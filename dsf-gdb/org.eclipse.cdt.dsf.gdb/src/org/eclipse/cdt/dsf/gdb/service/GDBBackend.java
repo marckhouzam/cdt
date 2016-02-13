@@ -204,18 +204,18 @@ public class GDBBackend extends AbstractDsfService implements IGDBBackend, IMIBa
     // getGDBCommandLineArray().
     // Here is the scenario:
     //   An extender has overridden getGDBCommandLineArray() to launch
-    //   GDB in MI mode but with extra parameters.  Once GDBBackend_7_11
+    //   GDB in MI mode but with extra parameters.  Once GDBBackend_7_12
     //   is released, the extender may likely point their extention to
-    //   GDBBackend_7_11 instead of GDBBackend (which will even happen
+    //   GDBBackend_7_12 instead of GDBBackend (which will even happen
     //   automatically if the extender extends GDBBackend_HEAD).
     //   In such a case, they would override the changes in 
-    //   GDBBackend_7_11.getGDBCommandLineArray() and the debug session
+    //   GDBBackend_7_12.getGDBCommandLineArray() and the debug session
     //   is likely to fail.
     //
     //   By using getGDBCommandLine(), an extender will not override it
     //   without noticing (as it didn't exist before).  Then we can call
     //   the overridden getGDBCommandLineArray() and work with that to
-    //   make it work with the new logic of GDBBackend_7_11
+    //   make it work with the new logic of GDBBackend_7_12
 	protected String[] getGDBCommandLine() {
 		// Call the old method in case it was overridden
 		return getGDBCommandLineArray();
