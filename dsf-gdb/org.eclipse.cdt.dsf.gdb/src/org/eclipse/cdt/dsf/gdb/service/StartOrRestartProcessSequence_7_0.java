@@ -313,7 +313,8 @@ public class StartOrRestartProcessSequence_7_0 extends ReflectionSequence {
 	 */
 	@Execute
 	public void stepCreateConsole(final RequestMonitor rm) {
-    	if (fBackend.getSessionType() == SessionType.REMOTE) {
+    	if (fBackend.getSessionType() == SessionType.REMOTE) 
+    	{
     		// The program output for a remote session is handled by gdbserver. Therefore,
     		// no need to create an inferior process and add it to the launch.
     		rm.done();

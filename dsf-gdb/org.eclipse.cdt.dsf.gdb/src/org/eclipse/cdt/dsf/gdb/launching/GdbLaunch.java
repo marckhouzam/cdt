@@ -194,40 +194,45 @@ public class GdbLaunch extends DsfLaunch implements ITerminate, IDisconnect, ITr
 		return fSession;
 	}
 
-	@ThreadSafeAndProhibitedFromDsfExecutor("getDsfExecutor()")
-	public void addCLIProcess(String label) throws CoreException {
-		try {
-			// Add the CLI process object to the launch.
-			AbstractCLIProcess cliProc = getDsfExecutor().submit(new Callable<AbstractCLIProcess>() {
-				@Override
-				public AbstractCLIProcess call() throws CoreException {
-					IGDBControl gdb = fTracker.getService(IGDBControl.class);
-					if (gdb != null) {
-						return gdb.getCLIProcess();
-					}
-					return null;
-				}
-			}).get();
+    @ThreadSafeAndProhibitedFromDsfExecutor("getDsfExecutor()")
+    public void addCLIProcess(String label) throws CoreException {
+        try {
+            // Add the CLI process object to the launch.
+    		Process cliProc =
+    			getDsfExecutor().submit( new Callable<Process>() {
+    				@Override
+    				public Process call() throws CoreException {
+    					IGDBControl gdb = fTracker.getService(IGDBControl.class);
+    					if (gdb != null) {
+    						return gdb.getCLIProcess();
+    					}
+    					return null;
+    				}
+    			}).get();
 
 			// Need to go through DebugPlugin.newProcess so that we can use
 			// the overrideable process factory to allow others to override.
 			// First set attribute to specify we want to create the gdb process.
 			// Bug 210366
 			Map<String, String> attributes = new HashMap<String, String>();
-			attributes.put(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR,
-					IGdbDebugConstants.GDB_PROCESS_CREATION_VALUE);
-			DebugPlugin.newProcess(this, cliProc, label, attributes);
-		} catch (InterruptedException e) {
-			throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, 0,
-					"Interrupted while waiting for get process callable.", e)); //$NON-NLS-1$
-		} catch (ExecutionException e) {
-			throw (CoreException) e.getCause();
-		} catch (RejectedExecutionException e) {
-			throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, 0,
-					"Debugger shut down before launch was completed.", e)); //$NON-NLS-1$
-		}
-	}
 
+			if (cliProc instanceof AbstractCLIProcess) {
+		    	attributes.put(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR, 
+   		    				   IGdbDebugConstants.GDB_PROCESS_CREATION_VALUE);
+		    } else {
+		    	attributes.put(IGdbDebugConstants.PROCESS_TYPE_CREATION_ATTR, 
+		    	               IGdbDebugConstants.GDB_PROCESS_NEW_CREATION_VALUE);
+		    }
+		    DebugPlugin.newProcess(this, cliProc, label, attributes);
+        } catch (InterruptedException e) {
+            throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, 0, "Interrupted while waiting for get process callable.", e)); //$NON-NLS-1$
+        } catch (ExecutionException e) {
+            throw (CoreException)e.getCause();
+        } catch (RejectedExecutionException e) {
+            throw new CoreException(new Status(IStatus.ERROR, GdbPlugin.PLUGIN_ID, 0, "Debugger shut down before launch was completed.", e)); //$NON-NLS-1$
+        } 
+    }
+    
 	public void setServiceFactory(IDsfDebugServicesFactory factory) {
 		fServiceFactory = factory;
 	}

@@ -12,7 +12,7 @@
 package org.eclipse.cdt.dsf.gdb.internal.ui;
 
 import org.eclipse.cdt.dsf.gdb.internal.GdbPlugin;
-import org.eclipse.cdt.dsf.gdb.internal.ui.console.TracingConsoleManager;
+import org.eclipse.cdt.dsf.gdb.internal.ui.console.GdbConsoleManager;
 import org.eclipse.cdt.dsf.gdb.launching.GdbLaunch;
 import org.eclipse.cdt.dsf.gdb.launching.LaunchMessages;
 import org.eclipse.core.runtime.IStatus;
@@ -45,7 +45,7 @@ public class GdbUIPlugin extends AbstractUIPlugin {
 	
     private static BundleContext fgBundleContext; 
 
-    private static TracingConsoleManager fTracingConsoleManager;
+    private static GdbConsoleManager fTracingConsoleManager;
     
     private static IPreferenceStore fCorePreferenceStore;
     
@@ -65,7 +65,7 @@ public class GdbUIPlugin extends AbstractUIPlugin {
 		super.start(context);
 		plugin = this;
 		
-		fTracingConsoleManager = new TracingConsoleManager();
+		fTracingConsoleManager = new GdbConsoleManager();
 		fTracingConsoleManager.startup();
 	}
 
