@@ -115,7 +115,7 @@ public class GDBBackend_7_12 extends GDBBackend implements IGDBBackendWithConsol
 				// probably specified "-i mi"
 				"-interpreter","console", //$NON-NLS-1$ //$NON-NLS-2$
 				// Now trigger the new console towards our PTY.
-				"-ex","new-console " + fPty.getSlaveName(), //$NON-NLS-1$ //$NON-NLS-2$
+				"-ex","new-ui mi " + fPty.getSlaveName(), //$NON-NLS-1$ //$NON-NLS-2$
 				// Now print the version so the user gets that familiar output
 				"-ex","show version"  //$NON-NLS-1$ //$NON-NLS-2$
 		};
